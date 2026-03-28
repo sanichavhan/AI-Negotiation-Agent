@@ -7,34 +7,43 @@ import NegotiationService from '../services/NegotiationService.js';
 import NegotiationAgent from '../agents/NegotiationAgent.js';
 import { AppError, successResponse, asyncHandler } from '../utils/errorHandler.js';
 
-const agent = new NegotiationAgent();
+// Lazy initialization - agent will be created when first needed
+let agent = null;
+
+const getAgent = () => {
+  if (!agent) {
+    agent = new NegotiationAgent();
+  }
+  return agent;
+};
 
 /**
  * Start new negotiation session
  * POST /api/negotiation/start
- * Body: { productId }
+ * Body: { productId, productTitle, originalPrice }
  */
 export const startSession = asyncHandler(async (req, res) => {
-  const { productId } = req.body;
+  const { productId, productTitle, originalPrice } = req.body;
 
-  // Validate product exists
-  const product = await Product.findById(productId);
-  if (!product) {
-    throw new AppError('Product not found', 404);
+  if (!productId || !productTitle || !originalPrice) {
+    throw new AppError('productId, productTitle, and originalPrice are required', 400);
   }
 
-  // Generate seller parameters
-  const sellerParams = NegotiationService.generateSellerParameters(
-    product.initialPrice
-  );
+  if (originalPrice <= 0) {
+    throw new AppError('Price must be greater than 0', 400);
+  }
+
+  // Generate seller parameters based on product price
+  const sellerParams = NegotiationService.generateSellerParameters(originalPrice);
 
   // Create negotiation session
+  // Store productId as-is (can be a number from FakeStore API or MongoDB ObjectId)
   const session = await NegotiationSession.create({
     userId: req.userId,
-    productId,
-    productName: product.name,
-    initialPrice: product.initialPrice,
-    currentPrice: product.initialPrice,
+    productId: productId,
+    productName: productTitle,
+    initialPrice: originalPrice,
+    currentPrice: originalPrice,
     minimumPrice: sellerParams.minimumPrice,
     targetProfit: sellerParams.targetProfit,
     sellerStrategy: sellerParams.strategy,
@@ -42,6 +51,7 @@ export const startSession = asyncHandler(async (req, res) => {
   });
 
   successResponse(res, 201, {
+    _id: session._id,
     sessionId: session._id,
     productName: session.productName,
     initialPrice: session.initialPrice,
@@ -80,12 +90,11 @@ export const sendMessage = asyncHandler(async (req, res) => {
     throw new AppError('This negotiation session is no longer active', 400);
   }
 
-  if (session.roundNumber >= session.maxRounds) {
-    throw new AppError('Maximum rounds reached', 400);
-  }
+  // Sessions can continue indefinitely - no automatic expiration
+  // Users can negotiate as long as they want
 
   // Analyze buyer message
-  const buyerAnalysis = await agent.analyzeBuyerMessage(message);
+  const buyerAnalysis = await getAgent().analyzeBuyerMessage(message);
 
   // If buyer has made an offer, validate it
   let userOffer = offerPrice || buyerAnalysis.offeredPrice;
@@ -114,33 +123,61 @@ export const sendMessage = asyncHandler(async (req, res) => {
     .join('\n');
 
   // Get AI response
-  const aiResponse = await agent.generateResponse(
-    {
-      currentPrice: session.currentPrice,
-      minimumPrice: session.minimumPrice,
-      targetProfit: session.targetProfit,
-      strategy: session.sellerStrategy,
-      patienceLevel: session.patienceLevel,
+  let aiResponse;
+  try {
+    console.log('🤖 Calling AI agent for response...', {
+      sessionId,
       productName: session.productName,
+      messageLength: message.length,
       roundNumber: session.roundNumber,
-      maxRounds: session.maxRounds,
-      conversationHistory,
-    },
-    message
-  );
+    });
 
-  if (!aiResponse.success) {
-    throw new AppError('Failed to generate AI response', 500);
+    aiResponse = await getAgent().generateResponse(
+      {
+        currentPrice: session.currentPrice,
+        minimumPrice: session.minimumPrice,
+        targetProfit: session.targetProfit,
+        strategy: session.sellerStrategy,
+        patienceLevel: session.patienceLevel,
+        productName: session.productName,
+        roundNumber: session.roundNumber,
+        maxRounds: session.maxRounds,
+        conversationHistory,
+      },
+      message
+    );
+
+    if (!aiResponse.success) {
+      console.error('❌ AI response failed:', {
+        success: aiResponse.success,
+        error: aiResponse.error,
+      });
+      throw new AppError('AI failed to generate response. Please try again.', 500);
+    }
+
+    console.log('✅ AI response generated successfully', {
+      responseLength: aiResponse.response.length,
+      newPrice: aiResponse.newPrice,
+    });
+  } catch (aiError) {
+    console.error('❌ Error generating AI response:', {
+      errorMessage: aiError.message,
+      errorCode: aiError.code,
+      errorStatus: aiError.statusCode,
+      details: aiError.response?.data || aiError.message,
+    });
+
+    // Provide more helpful error messages
+    if (aiError.message.includes('401') || aiError.message.includes('unauthorized')) {
+      throw new AppError('Mistral API authentication failed. Check API key in server.', 500);
+    } else if (aiError.message.includes('429')) {
+      throw new AppError('Too many requests to AI service. Please try again in a moment.', 429);
+    } else if (aiError.message.includes('timeout')) {
+      throw new AppError('AI service took too long to respond. Please try again.', 504);
+    } else {
+      throw new AppError(`AI service error: ${aiError.message}`, 500);
+    }
   }
-
-  // Check if should end negotiation
-  const shouldEnd = NegotiationService.shouldEndNegotiation(
-    session.roundNumber,
-    session.maxRounds,
-    userOffer,
-    session.minimumPrice,
-    session.patienceLevel
-  );
 
   // Save AI message
   const aiMessage = await Message.create({
@@ -156,20 +193,24 @@ export const sendMessage = asyncHandler(async (req, res) => {
   session.currentPrice = aiResponse.newPrice;
   session.roundNumber += 1;
 
-  if (shouldEnd) {
-    session.status = 'completed';
-    session.finalPrice = aiResponse.newPrice;
-    session.completedAt = new Date();
-  }
+  // Keep session active - don't auto-end negotiations
+  // Users can manually accept deals or can continue negotiating indefinitely
+  // Session will only end when user explicitly accepts the deal
+  session.status = 'active';
 
   await session.save();
 
   successResponse(res, 200, {
-    aiMessage: aiResponse.response,
+    message: aiResponse.response,
+    aiResponse: aiResponse.response,
+    newPrice: aiResponse.newPrice,
     counterPrice: aiResponse.newPrice,
     reasoning: aiResponse.reasoning,
     roundNumber: session.roundNumber,
+    maxRounds: session.maxRounds,
     sessionStatus: session.status,
+    dealAccepted: false,
+    dealRejected: false,
     emotion: aiResponse.emotion,
   }, 'Message sent successfully');
 });

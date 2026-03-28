@@ -19,10 +19,20 @@ const LoginPage = () => {
     e.preventDefault();
     try {
       const data = await login(formData.email, formData.password);
+      console.log('✅ Login response received:', { userEmail: data.user?.email, tokenLength: data.token?.length });
+      
+      // Store to context and localStorage
       contextLogin(data.user, data.token);
+      
+      // Verify immediate storage
+      setTimeout(() => {
+        const storedToken = localStorage.getItem('token');
+        console.log('✅ Token verified in localStorage:', storedToken ? 'YES' : 'NO');
+      }, 100);
+      
       navigate('/');
     } catch (err) {
-      console.error('Login failed:', err);
+      console.error('❌ Login failed:', err);
     }
   };
 

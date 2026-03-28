@@ -10,6 +10,7 @@ import RegisterPage from './pages/RegisterPage';
 import NegotiationPage from './pages/NegotiationPage';
 import LeaderboardPage from './pages/LeaderboardPage';
 import ProfilePage from './pages/ProfilePage';
+import ClothingStorePage from './pages/ClothingStorePage';
 
 /**
  * Protected Route Component
@@ -40,7 +41,15 @@ const App = () => {
 
             {/* Protected Routes */}
             <Route
-              path="/negotiate/:productId"
+              path="/products"
+              element={
+                <ProtectedRoute>
+                  <ClothingStorePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/negotiation"
               element={
                 <ProtectedRoute>
                   <NegotiationPage />

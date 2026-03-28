@@ -8,8 +8,8 @@ const sessionSchema = new mongoose.Schema(
       required: true,
     },
     productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
+      // Can be MongoDB ObjectId or FakeStore API ID (number)
+      type: mongoose.Schema.Types.Mixed,
       required: true,
     },
     productName: String,

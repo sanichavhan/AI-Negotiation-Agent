@@ -1,9 +1,10 @@
 import dotenv from 'dotenv';
+
+// Load environment variables FIRST before importing anything else
+dotenv.config();
+
 import connectDB from './config/database.js';
 import app from './src/app.js';
-
-// Load environment variables
-dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
@@ -19,17 +20,11 @@ const startServer = async () => {
       console.log(`📝 Ready to accept requests`);
     });
 
-    // Handle port conflicts gracefully
+    // Handle server errors
     server.on('error', (error) => {
       if (error.code === 'EADDRINUSE') {
         console.error(`❌ Port ${PORT} is already in use`);
-        console.log(`🔄 Trying to reuse existing connection...`);
-        // Give time for port to be released
-        setTimeout(() => {
-          server.listen(PORT, () => {
-            console.log(`🚀 Server running on http://localhost:${PORT}`);
-          });
-        }, 3000);
+        process.exit(1);
       } else {
         console.error(`❌ Server error:`, error.message);
         process.exit(1);

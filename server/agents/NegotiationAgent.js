@@ -6,9 +6,33 @@ import { Mistral } from '@mistralai/mistralai';
  */
 class NegotiationAgent {
   constructor() {
-    this.client = new Mistral({
-      apiKey: process.env.MISTRAL_API_KEY,
-    });
+    this.apiKey = process.env.MISTRAL_API_KEY;
+    
+    // Don't validate here - will validate when API is actually used
+    // This allows server to start even if key is missing
+    if (this.apiKey) {
+      console.log('✅ Mistral API key loaded from environment');
+      this.client = new Mistral({
+        apiKey: this.apiKey,
+      });
+    } else {
+      console.warn('⚠️  Mistral API key not set. AI negotiation will fail until configured.');
+      this.client = null;
+    }
+  }
+
+  /**
+   * Validate API key before making requests
+   */
+  _validateApiKey() {
+    if (!this.apiKey) {
+      throw new Error(
+        'Mistral API key not configured. Please add MISTRAL_API_KEY to your .env file.'
+      );
+    }
+    if (this.apiKey.length < 10) {
+      throw new Error('Invalid Mistral API key format. Key appears too short.');
+    }
   }
 
   /**
@@ -16,6 +40,9 @@ class NegotiationAgent {
    */
   async generateResponse(negotiationState, buyerMessage) {
     try {
+      // Validate API key before attempting to use it
+      this._validateApiKey();
+
       const {
         currentPrice,
         minimumPrice,
@@ -58,16 +85,48 @@ CRITICAL: Always return valid JSON, never wrap it in markdown code blocks.`;
 
       const userPrompt = `Previous conversation context:\n${conversationHistory || 'No previous messages'}\n\nBuyer's message: "${buyerMessage}"\n\nRespond with your counter-offer.`;
 
-      // Call Mistral API
-      const response = await this.client.chat.complete({
+      // Call Mistral API with error handling
+      console.log('🚀 Calling Mistral API...', {
         model: 'mistral-small-latest',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.7,
-        maxTokens: 500,
+        messageCount: 2,
+        promptLength: userPrompt.length,
       });
+
+      let response;
+      try {
+        response = await this.client.chat.complete({
+          model: 'mistral-small-latest',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt },
+          ],
+          temperature: 0.7,
+          maxTokens: 500,
+        });
+        
+        console.log('✅ Mistral API response received', {
+          messageCount: response.choices?.length,
+          contentLength: response.choices?.[0]?.message?.content?.length,
+        });
+      } catch (apiError) {
+        console.error('❌ Mistral API call failed:', {
+          errorMessage: apiError.message,
+          errorCode: apiError.code,
+          errorStatus: apiError.status,
+          errorType: apiError.constructor.name,
+        });
+        
+        // Check for specific error types
+        if (apiError.message?.includes('401') || apiError.message?.includes('Unauthorized')) {
+          throw new Error('Mistral API authentication failed. Check MISTRAL_API_KEY.');
+        } else if (apiError.message?.includes('429')) {
+          throw new Error('Mistral API rate limit exceeded. Try again later.');
+        } else if (apiError.message?.includes('timeout')) {
+          throw new Error('Mistral API request timeout.');
+        } else {
+          throw new Error(`Mistral API error: ${apiError.message}`);
+        }
+      }
 
       // Parse response
       const responseText = response.choices[0].message.content.trim();
@@ -102,8 +161,17 @@ CRITICAL: Always return valid JSON, never wrap it in markdown code blocks.`;
         return this._generateFallbackResponse(currentPrice, minimumPrice, strategy);
       }
     } catch (error) {
-      console.error('Error in generateResponse:', error.message);
-      throw error;
+      console.error('❌ Critical error in generateResponse:', {
+        errorMessage: error.message,
+        errorStack: error.stack?.split('\n')[0],
+        type: error.constructor.name,
+      });
+      
+      // Re-throw with context
+      const errorMsg = error.message || 'Unknown error in AI response generation';
+      const err = new Error(`AI Agent Error: ${errorMsg}`);
+      err.originalError = error;
+      throw err;
     }
   }
 

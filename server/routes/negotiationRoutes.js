@@ -22,6 +22,12 @@ router.use(authMiddleware);
 router.post('/start', asyncHandler(startSession));
 
 /**
+ * Get user's negotiation history (MUST come before :sessionId routes)
+ * GET /api/negotiation/history
+ */
+router.get('/history', asyncHandler(getHistory));
+
+/**
  * Send message to AI in active session
  * POST /api/negotiation/:sessionId/message
  */
@@ -44,11 +50,5 @@ router.post('/:sessionId/accept', asyncHandler(acceptDeal));
  * POST /api/negotiation/:sessionId/abandon
  */
 router.post('/:sessionId/abandon', asyncHandler(abandonSession));
-
-/**
- * Get user's negotiation history
- * GET /api/negotiation/history
- */
-router.get('/history', asyncHandler(getHistory));
 
 export default router;

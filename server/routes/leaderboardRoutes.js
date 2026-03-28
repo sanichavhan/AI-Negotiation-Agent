@@ -17,13 +17,13 @@ const router = express.Router();
 router.get('/', optionalAuthMiddleware, asyncHandler(getLeaderboard));
 
 /**
- * Get current user's statistics
+ * Get current user's statistics (MUST come before parameterized routes)
  * GET /api/leaderboard/stats
  */
 router.get('/stats', authMiddleware, asyncHandler(getUserStats));
 
 /**
- * Get user's personal best deals
+ * Get user's personal best deals (MUST come before parameterized routes)
  * GET /api/leaderboard/personal
  */
 router.get('/personal', authMiddleware, asyncHandler(getUserPersonalLeaderboard));

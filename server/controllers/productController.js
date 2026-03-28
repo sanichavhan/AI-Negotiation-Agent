@@ -1,40 +1,66 @@
 import Product from '../models/Product.js';
 import { successResponse, asyncHandler, AppError } from '../utils/errorHandler.js';
+import ProductService from '../services/ProductService.js';
 
 /**
- * Get all available products
- * TODO: Implement product listing
+ * Get all products from FakeStore API
  */
 export const getProducts = asyncHandler(async (req, res) => {
-  // 1. Query all products
-  // 2. Apply filters if provided (difficulty, category)
-  // 3. Sort by name
-  // 4. Return products
-
-  throw new AppError('Not yet implemented', 501);
+  const products = await ProductService.getAllProducts();
+  successResponse(res, 200, products, 'Products retrieved successfully');
 });
 
 /**
- * Get product details
- * TODO: Implement product details retrieval
+ * Get available clothing products (random 6-12)
+ */
+export const getAvailableClothing = asyncHandler(async (req, res) => {
+  const count = req.query.count || 6;
+  const products = await ProductService.getRandomClothingProducts(parseInt(count));
+  successResponse(res, 200, products, 'Available clothing products');
+});
+
+/**
+ * Get products by category
+ */
+export const getByCategory = asyncHandler(async (req, res) => {
+  const { category } = req.params;
+  const count = req.query.count || 12;
+  
+  if (category.toLowerCase().includes('clothing')) {
+    const products = await ProductService.getRandomClothingProducts(parseInt(count));
+    successResponse(res, 200, products, `${category} products`);
+  } else {
+    const products = await ProductService.getRandomProductsByCategory(
+      category,
+      parseInt(count)
+    );
+    successResponse(res, 200, products, `${category} products`);
+  }
+});
+
+/**
+ * Get product by ID
  */
 export const getProductById = asyncHandler(async (req, res) => {
-  // 1. Get product by ID
-  // 2. Include top leaderboard scores for this product
-  // 3. Return product details
-
-  throw new AppError('Not yet implemented', 501);
+  const { id } = req.params;
+  const product = await ProductService.getProductById(id);
+  successResponse(res, 200, product, 'Product retrieved successfully');
 });
 
 /**
- * Create new product (admin)
- * TODO: Implement product creation
+ * Get all available categories
  */
-export const createProduct = asyncHandler(async (req, res) => {
-  // 1. Validate admin status
-  // 2. Validate product data
-  // 3. Create product
-  // 4. Return created product
+export const getCategories = asyncHandler(async (req, res) => {
+  const allProducts = await ProductService.getAllProducts();
+  const categories = [...new Set(allProducts.map((p) => p.category))];
+  successResponse(res, 200, categories, 'Categories retrieved');
+});
 
-  throw new AppError('Not yet implemented', 501);
+/**
+ * Refresh product cache (admin endpoint)
+ */
+export const refreshCache = asyncHandler(async (req, res) => {
+  ProductService.clearCache();
+  const products = await ProductService.getAllProducts();
+  successResponse(res, 200, { cached: products.length }, 'Cache refreshed');
 });

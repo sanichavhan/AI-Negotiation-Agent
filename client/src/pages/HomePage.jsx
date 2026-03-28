@@ -50,7 +50,7 @@ const HomePage = () => {
 
           {isAuthenticated ? (
             <Link
-              to="/leaderboard"
+              to="/products"
               className="inline-block bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700"
             >
               Start Negotiating

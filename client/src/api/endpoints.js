@@ -6,6 +6,7 @@ import apiClient from './apiClient';
 export const authApi = {
   register: (data) => apiClient.post('/auth/register', data),
   login: (data) => apiClient.post('/auth/login', data),
+  getMe: () => apiClient.get('/auth/me'), // Get current user details
   getProfile: () => apiClient.get('/auth/profile'),
   updateProfile: (data) => apiClient.put('/auth/profile', data),
   changePassword: (data) => apiClient.post('/auth/change-password', data),
@@ -38,6 +39,23 @@ export const leaderboardApi = {
  * Product API endpoints
  */
 export const productApi = {
+  // Get all products
   getProducts: () => apiClient.get('/products'),
+  
+  // Get product by ID
   getProductById: (id) => apiClient.get(`/products/${id}`),
+  
+  // Get available clothing products for negotiation
+  getAvailableClothing: (count = 6) =>
+    apiClient.get('/products/available/clothing', { params: { count } }),
+  
+  // Get products by category
+  getByCategory: (category, count = 6) =>
+    apiClient.get(`/products/category/${category}`, { params: { count } }),
+  
+  // Get all available categories
+  getCategories: () => apiClient.get('/products/categories'),
+  
+  // Refresh product cache
+  refreshCache: () => apiClient.get('/products/admin/refresh'),
 };
