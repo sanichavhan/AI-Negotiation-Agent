@@ -9,6 +9,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@mistralai/mistralai": "^2.1.2",
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",

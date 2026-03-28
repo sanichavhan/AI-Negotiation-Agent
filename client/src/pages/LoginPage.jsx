@@ -20,7 +20,7 @@ const LoginPage = () => {
     try {
       const data = await login(formData.email, formData.password);
       contextLogin(data.user, data.token);
-      navigate('/leaderboard');
+      navigate('/');
     } catch (err) {
       console.error('Login failed:', err);
     }

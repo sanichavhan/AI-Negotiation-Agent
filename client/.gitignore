@@ -49,8 +49,6 @@ API_TESTING_GUIDE.md
 *.pdf
 *.doc
 *.docx
-*.md
-*.docx
 
 # Temp files
 *.tmp
