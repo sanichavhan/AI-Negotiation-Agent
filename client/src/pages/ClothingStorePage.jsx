@@ -141,31 +141,120 @@ const ClothingStorePage = () => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12 mt-12">
+      <footer className="bg-gradient-to-b from-gray-900 to-gray-950 text-white py-16 mt-16 border-t border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            <div>
-              <h3 className="text-lg font-semibold mb-4">About</h3>
-              <p className="text-gray-400">
-                AI Negotiation Store - Practice your negotiation skills with our AI seller
-              </p>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Features</h3>
-              <ul className="text-gray-400 space-y-2 text-sm">
-                <li>✓ Real product data from FakeStore API</li>
-                <li>✓ AI-powered negotiation</li>
-                <li>✓ Track your purchases</li>
-                <li>✓ Leaderboard rankings</li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Contact</h3>
-              <p className="text-gray-400 text-sm">support@ainegotiation.com</p>
+          {/* Newsletter Subscription Section */}
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-8 mb-12 shadow-lg">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+              <div>
+                <h2 className="text-2xl font-bold mb-2">Stay Updated</h2>
+                <p className="text-blue-100">Get tips on improving your negotiation skills and exclusive deals</p>
+              </div>
+              <div className="flex gap-2">
+                <input 
+                  type="email" 
+                  placeholder="Enter your email..." 
+                  className="flex-1 px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                />
+                <button className="bg-white hover:bg-blue-50 text-blue-600 font-semibold px-6 py-3 rounded-lg transition">
+                  Subscribe
+                </button>
+              </div>
             </div>
           </div>
-          <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
-            <p>&copy; 2026 AI Negotiation Agent. All rights reserved.</p>
+
+          {/* Main Footer Content */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+            {/* Logo and Description */}
+            <div>
+              <h3 className="text-2xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                🏪 AI Negotiations
+              </h3>
+              <p className="text-gray-400 text-sm leading-relaxed mb-4">
+                Master the art of negotiation with our AI-powered shopping experience. Real products, real skills.
+              </p>
+              {/* Social Links */}
+              <div className="flex gap-4 mt-4">
+                <a href="#" className="text-gray-400 hover:text-blue-400 transition text-xl">𝕏</a>
+                <a href="#" className="text-gray-400 hover:text-blue-400 transition text-xl">f</a>
+                <a href="#" className="text-gray-400 hover:text-blue-400 transition text-xl">in</a>
+              </div>
+            </div>
+
+            {/* Features */}
+            <div>
+              <h4 className="text-lg font-semibold mb-4 text-white">Features</h4>
+              <ul className="space-y-3 text-sm">
+                <li className="text-gray-400 hover:text-blue-400 transition cursor-pointer">✨ AI Negotiation</li>
+                <li className="text-gray-400 hover:text-blue-400 transition cursor-pointer">📊 Leaderboard</li>
+                <li className="text-gray-400 hover:text-blue-400 transition cursor-pointer">🏆 Rankings</li>
+                <li className="text-gray-400 hover:text-blue-400 transition cursor-pointer">📈 Analytics</li>
+              </ul>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="text-lg font-semibold mb-4 text-white">Quick Links</h4>
+              <ul className="space-y-3 text-sm">
+                <li><Link to="/profile" className="text-gray-400 hover:text-blue-400 transition">Your Profile</Link></li>
+                <li><Link to="/leaderboard" className="text-gray-400 hover:text-blue-400 transition">Leaderboard</Link></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition">Blog</a></li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition">Help Center</a></li>
+              </ul>
+            </div>
+
+            {/* Support */}
+            <div>
+              <h4 className="text-lg font-semibold mb-4 text-white">Support</h4>
+              <ul className="space-y-3 text-sm">
+                <li className="text-gray-400">📧 <a href="mailto:support@ainegotiation.com" className="hover:text-blue-400 transition">support@ainegotiation.com</a></li>
+                <li className="text-gray-400">💬 Live Chat Available</li>
+                <li className="text-gray-400">⏰ 24/7 Support</li>
+                <li><a href="#" className="text-gray-400 hover:text-blue-400 transition">FAQ</a></li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Stats Section */}
+          <div className="grid grid-cols-3 md:grid-cols-5 gap-4 mb-12 py-8 border-y border-gray-800">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-blue-400">50K+</p>
+              <p className="text-gray-400 text-sm">Active Users</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-blue-400">100K+</p>
+              <p className="text-gray-400 text-sm">Negotiations</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-blue-400">$5M+</p>
+              <p className="text-gray-400 text-sm">Saved</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-blue-400">98%</p>
+              <p className="text-gray-400 text-sm">Satisfaction</p>
+            </div>
+            <div className="text-center hidden md:block">
+              <p className="text-2xl font-bold text-blue-400">24/7</p>
+              <p className="text-gray-400 text-sm">Available</p>
+            </div>
+          </div>
+
+          {/* Legal and Copyright */}
+          <div className="border-t border-gray-800 pt-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+              <p className="text-gray-400 text-sm leading-relaxed">
+                <strong>About AI Negotiation Store:</strong> We help you master negotiation skills through interactive AI-powered experiences. Buy smarter, negotiate better.
+              </p>
+              <div className="flex flex-wrap gap-4 justify-start md:justify-end">
+                <a href="#" className="text-gray-400 hover:text-blue-400 transition text-sm">Privacy Policy</a>
+                <a href="#" className="text-gray-400 hover:text-blue-400 transition text-sm">Terms of Service</a>
+                <a href="#" className="text-gray-400 hover:text-blue-400 transition text-sm">Cookie Policy</a>
+                <a href="#" className="text-gray-400 hover:text-blue-400 transition text-sm">Sitemap</a>
+              </div>
+            </div>
+            <div className="text-center text-gray-500 text-sm border-t border-gray-800 pt-6">
+              <p>&copy; 2026 AI Negotiation Agent. All rights reserved. | Built with ❤️ by Copilot</p>
+            </div>
           </div>
         </div>
       </footer>

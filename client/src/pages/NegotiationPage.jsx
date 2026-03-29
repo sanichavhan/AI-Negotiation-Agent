@@ -221,31 +221,95 @@ const NegotiationPage = () => {
       </main>
 
       {/* Info Footer */}
-      <footer className="bg-white border-t mt-8">
-        <div className="max-w-6xl mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div>
-              <h4 className="font-bold text-gray-800 mb-2">💡 Negotiation Tips</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Start with 50-60% of original price</li>
-                <li>• Increase gradually (5-10% each round)</li>
-                <li>• Be respectful and polite</li>
+      <footer className="bg-gradient-to-r from-blue-50 to-purple-50 border-t border-blue-200 mt-12">
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            {/* Negotiation Tips */}
+            <div className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition">
+              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span className="text-2xl">💡</span> Negotiation Tips
+              </h4>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 font-bold">→</span>
+                  <span>Start with 50-60% of original price</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 font-bold">→</span>
+                  <span>Increase gradually (5-10% per round)</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 font-bold">→</span>
+                  <span>Be respectful and logical</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500 font-bold">→</span>
+                  <span>Use justifications for offers</span>
+                </li>
               </ul>
             </div>
-            <div>
-              <h4 className="font-bold text-gray-800 mb-2">🎯 AI Shopkeeper Rules</h4>
-              <ul className="text-sm text-gray-600 space-y-1">
-                <li>• Needs 20-30% profit minimum</li>
-                <li>• Will accept fair offers</li>
-                <li>• Provides realistic feedback</li>
+
+            {/* AI Shopkeeper Rules */}
+            <div className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition">
+              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span className="text-2xl">🤖</span> AI Shopkeeper Rules
+              </h4>
+              <ul className="text-sm text-gray-600 space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-500 font-bold">•</span>
+                  <span>Will never reveal minimum price</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-500 font-bold">•</span>
+                  <span>Uses strategic persuasion tactics</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-500 font-bold">•</span>
+                  <span>Accepts fair offers gracefully</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-purple-500 font-bold">•</span>
+                  <span>Provides realistic counter-offers</span>
+                </li>
               </ul>
             </div>
-            <div>
-              <h4 className="font-bold text-gray-800 mb-2">✅ Goal</h4>
-              <p className="text-sm text-gray-600">
-                Negotiate the best possible price while keeping the shopkeeper's profit margin!
-              </p>
+
+            {/* Success Metrics */}
+            <div className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition">
+              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <span className="text-2xl">🎯</span> Your Goal
+              </h4>
+              <div className="space-y-3">
+                <p className="text-sm text-gray-600">
+                  Get the best price while maintaining a win-win situation with the shopkeeper.
+                </p>
+                <div className="bg-blue-100 border-l-4 border-blue-500 p-3 rounded">
+                  <p className="text-xs font-semibold text-blue-900">💰 Pro Tip:</p>
+                  <p className="text-xs text-blue-800 mt-1">
+                    The more you save, the higher your leaderboard ranking!
+                  </p>
+                </div>
+              </div>
             </div>
+          </div>
+
+          {/* Bottom Info Bar */}
+          <div className="bg-white rounded-lg p-4 flex flex-col md:flex-row items-center justify-between gap-4 border border-blue-200">
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span className="text-xl">❓</span>
+              <span><strong>Need help?</strong> Check our negotiation guides and best practices.</span>
+            </div>
+            <a 
+              href="/leaderboard" 
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap"
+            >
+              View Leaderboard →
+            </a>
+          </div>
+
+          {/* Footer Copyright */}
+          <div className="text-center text-gray-500 text-xs mt-6 border-t border-gray-200 pt-6">
+            <p>&copy; 2026 AI Negotiation Agent | Master negotiation skills one deal at a time</p>
           </div>
         </div>
       </footer>
