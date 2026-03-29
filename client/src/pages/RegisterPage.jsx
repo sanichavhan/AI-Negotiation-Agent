@@ -30,7 +30,7 @@ const RegisterPage = () => {
         formData.displayName
       );
       contextLogin(data.user, data.token);
-      navigate('/leaderboard');
+      navigate('/');
     } catch (err) {
       console.error('Registration failed:', err);
     }

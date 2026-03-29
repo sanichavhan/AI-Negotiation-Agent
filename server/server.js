@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 
-// Load environment variables FIRST before importing anything else
+// Load env variables FIRST
 dotenv.config();
 
 import connectDB from './config/database.js';
@@ -8,30 +8,23 @@ import app from './src/app.js';
 
 const PORT = process.env.PORT || 3000;
 
-// Start server only after DB connects
+// Test route
+app.get("/", (req, res) => {
+  res.send("Backend is running 🚀");
+});
+
+// ✅ Wrap in async function
 const startServer = async () => {
   try {
-    // Connect to MongoDB
     await connectDB();
-    
-    // Start server with error handling for port conflicts
-    const server = app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📝 Ready to accept requests`);
+    console.log("✅ MongoDB Connected");
+
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
     });
 
-    // Handle server errors
-    server.on('error', (error) => {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`❌ Port ${PORT} is already in use`);
-        process.exit(1);
-      } else {
-        console.error(`❌ Server error:`, error.message);
-        process.exit(1);
-      }
-    });
   } catch (error) {
-    console.error(`❌ Failed to start server:`, error.message);
+    console.error("❌ Server failed to start:", error);
     process.exit(1);
   }
 };

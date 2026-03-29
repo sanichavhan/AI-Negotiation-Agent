@@ -10,11 +10,27 @@ import productRoutes from '../routes/productRoutes.js';
 import morgan from 'morgan';
 const app = express();
 
+// CORS configuration - Local development origins only
+const allowedOrigins = [
+  'http://localhost:5173',           // Local development
+  'http://localhost:3000',           // Local alternative
+  'http://127.0.0.1:5173',          // Local IP
+].filter(Boolean); // Remove falsy values
+
 // Middleware
 app.use(morgan('dev'));
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS error: Origin ${origin} not allowed`));
+    }
+  },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.use(express.json());

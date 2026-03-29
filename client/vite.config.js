@@ -12,8 +12,4 @@ export default defineConfig({
       },
     },
   },
-  define: {
-    __VITE_API_URL__: JSON.stringify(process.env.VITE_API_URL || 'http://localhost:3000'),
-    __VITE_API_TIMEOUT__: JSON.stringify(process.env.VITE_API_TIMEOUT || '30000'),
-  },
 });
