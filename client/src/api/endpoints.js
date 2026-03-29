@@ -30,9 +30,11 @@ export const negotiationApi = {
  * Leaderboard API endpoints
  */
 export const leaderboardApi = {
-  getLeaderboard: (page = 1, limit = 50) =>
-    apiClient.get('/leaderboard', { params: { page, limit } }),
+  getLeaderboard: (page = 1, limit = 50, sortBy = 'totalSavings', timeframe = 'all') =>
+    apiClient.get('/leaderboard', { params: { page, limit, sortBy, timeframe } }),
   getUserStats: () => apiClient.get('/leaderboard/stats'),
+  getRecentPurchases: (page = 1, limit = 50) =>
+    apiClient.get('/leaderboard', { params: { page, limit, sortBy: 'recent' } }),
 };
 
 /**

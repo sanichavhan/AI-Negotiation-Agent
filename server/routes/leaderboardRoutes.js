@@ -4,6 +4,8 @@ import {
   getUserStats,
   getUserPersonalLeaderboard,
   getProductLeaderboard,
+  cleanupLeaderboard,
+  debugLeaderboard,
 } from '../controllers/leaderboardController.js';
 import { authMiddleware, optionalAuthMiddleware } from '../middlewares/auth.js';
 import { asyncHandler } from '../utils/errorHandler.js';
@@ -33,5 +35,18 @@ router.get('/personal', authMiddleware, asyncHandler(getUserPersonalLeaderboard)
  * GET /api/leaderboard/product/:productId
  */
 router.get('/product/:productId', asyncHandler(getProductLeaderboard));
+
+/**
+ * Manual cleanup for duplicate leaderboard entries
+ * POST /api/leaderboard/admin/cleanup
+ * Removes old duplicate entries from database
+ */
+router.post('/admin/cleanup', asyncHandler(cleanupLeaderboard));
+
+/**
+ * Debug endpoint - diagnostic info
+ * GET /api/leaderboard/admin/debug
+ */
+router.get('/admin/debug', asyncHandler(debugLeaderboard));
 
 export default router;

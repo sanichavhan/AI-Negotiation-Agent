@@ -20,6 +20,29 @@ const NegotiationPage = () => {
   const [sessionId, setSessionId] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState(null);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  // Handle header visibility on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // Show header when scrolling up, hide when scrolling down
+      if (currentScrollY < lastScrollY) {
+        // Scrolling up
+        setIsHeaderVisible(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 50) {
+        // Scrolling down (and past 50px threshold)
+        setIsHeaderVisible(false);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   // Get product from navigation state
   useEffect(() => {
@@ -81,7 +104,7 @@ const NegotiationPage = () => {
     try {
       const response = await negotiationApi.acceptDeal(sessionId);
       if (response.data.success) {
-        navigate('/profile', {
+        navigate('/products', {
           state: { 
             dealCompleted: true,
             product: product,
@@ -149,7 +172,9 @@ const NegotiationPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b">
+      <header className={`bg-white shadow-sm border-b fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${
+        isHeaderVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+      }`}>
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
@@ -184,7 +209,7 @@ const NegotiationPage = () => {
       </header>
 
       {/* Main Chat Area */}
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-4xl mx-auto px-4 py-8 pt-20">
         <div className="h-[600px]">
           <NegotiationChat
             product={product}

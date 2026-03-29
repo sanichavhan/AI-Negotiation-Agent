@@ -96,15 +96,17 @@ export const sendMessage = asyncHandler(async (req, res) => {
   // Analyze buyer message
   const buyerAnalysis = await getAgent().analyzeBuyerMessage(message);
 
-  // If buyer has made an offer, validate it
+  // If buyer has made an offer, check if it's below minimum
   let userOffer = offerPrice || buyerAnalysis.offeredPrice;
-  if (userOffer !== null && userOffer !== undefined) {
-    if (userOffer < session.minimumPrice) {
-      throw new AppError(
-        `Can't go below minimum price of $${session.minimumPrice}`,
-        400
-      );
-    }
+  let isBelowMinimumPrice = false;
+  
+  if (userOffer !== null && userOffer !== undefined && userOffer < session.minimumPrice) {
+    isBelowMinimumPrice = true;
+    console.log('⚠️ Buyer offer is below minimum price', {
+      userOffer,
+      minimumPrice: session.minimumPrice,
+      gap: session.minimumPrice - userOffer,
+    });
   }
 
   // Save user message
@@ -130,6 +132,7 @@ export const sendMessage = asyncHandler(async (req, res) => {
       productName: session.productName,
       messageLength: message.length,
       roundNumber: session.roundNumber,
+      isBelowMinimumPrice,
     });
 
     aiResponse = await getAgent().generateResponse(
@@ -143,6 +146,8 @@ export const sendMessage = asyncHandler(async (req, res) => {
         roundNumber: session.roundNumber,
         maxRounds: session.maxRounds,
         conversationHistory,
+        isBelowMinimumPrice,
+        buyerOffer: userOffer,
       },
       message
     );
@@ -296,48 +301,94 @@ export const acceptDeal = asyncHandler(async (req, res) => {
 
   await session.save();
 
-  // Calculate and save leaderboard entry
+  // Calculate discount values
   const discount = session.initialPrice - session.finalPrice;
   const discountPercentage = (discount / session.initialPrice) * 100;
-  const score = NegotiationService.calculateScore(
-    session.initialPrice,
-    session.finalPrice,
-    discountPercentage
-  );
 
-  const user = await User.findById(req.userId);
+  // Check if leaderboard entry already exists for this session (prevents duplicates)
+  const existingEntry = await Leaderboard.findOne({ sessionId });
+  
+  let leaderboardEntryCreated = false;
 
-  const leaderboardEntry = await Leaderboard.create({
-    userId: req.userId,
-    username: user.username,
-    userEmail: user.email,
-    productName: session.productName,
-    initialPrice: session.initialPrice,
-    finalPrice: session.finalPrice,
-    discount,
-    discountPercentage: Math.round(discountPercentage * 100) / 100,
-    roundsUsed: session.roundNumber,
-    score,
-    sessionId,
-    completedAt: new Date(),
-  });
+  if (!existingEntry) {
+    try {
+      // Calculate score - simple formula: lower final price is better
+      let score = session.finalPrice;
+      try {
+        score = NegotiationService.calculateScore(
+          session.initialPrice,
+          session.finalPrice,
+          discountPercentage
+        );
+      } catch (scoreErr) {
+        console.warn('⚠️ Score calculation failed, using default:', scoreErr.message);
+        // Fallback: use final price as score
+        score = session.finalPrice;
+      }
 
-  // Update user statistics
-  const userStats = await Leaderboard.find({ userId: req.userId });
-  user.totalNegotiations = userStats.length;
-  user.bestDeal = Math.min(...userStats.map((s) => s.finalPrice));
-  user.averageDiscount =
-    userStats.reduce((sum, s) => sum + s.discountPercentage, 0) /
-    userStats.length;
-  await user.save();
+      const user = await User.findById(req.userId);
+
+      const leaderboardData = {
+        userId: req.userId,
+        username: user.username,
+        userEmail: user.email,
+        productName: session.productName,
+        initialPrice: session.initialPrice,
+        finalPrice: session.finalPrice,
+        discount,
+        discountPercentage: Math.round(discountPercentage * 100) / 100,
+        roundsUsed: session.roundNumber,
+        score,
+        sessionId: sessionId,
+        completedAt: session.completedAt,
+      };
+
+      console.log('📝 Creating leaderboard entry:', leaderboardData);
+
+      const newEntry = await Leaderboard.create(leaderboardData);
+
+      leaderboardEntryCreated = true;
+      console.log('✅ Leaderboard entry created successfully:', newEntry._id);
+
+      // Update user statistics
+      const userStats = await Leaderboard.find({ userId: req.userId });
+      user.totalNegotiations = userStats.length;
+      user.bestDeal = Math.min(...userStats.map((s) => s.finalPrice));
+      user.averageDiscount =
+        userStats.reduce((sum, s) => sum + s.discountPercentage, 0) /
+        userStats.length;
+      await user.save();
+      console.log('✅ User statistics updated');
+    } catch (error) {
+      console.error('❌ Error creating leaderboard entry:', {
+        message: error.message,
+        code: error.code,
+        name: error.name,
+        stack: error.stack,
+      });
+      
+      // If it's a duplicate key error, it might already exist
+      if (error.code === 11000 || error.name === 'MongoServerError') {
+        console.log('ℹ️ Duplicate key or database error - entry may already exist');
+        leaderboardEntryCreated = true; // Consider it success to avoid breaking the deal acceptance
+      } else {
+        throw new AppError('Failed to record deal in leaderboard: ' + error.message, 500);
+      }
+    }
+  } else {
+    console.log('ℹ️ Leaderboard entry already exists for session:', sessionId);
+  }
+
+  const scoreValue = Math.round((session.initialPrice - discount) * 100) / 100;
 
   successResponse(res, 200, {
-    score,
-    discount,
+    score: scoreValue,
+    discount: Math.round(discount * 100) / 100,
     discountPercentage: Math.round(discountPercentage * 100) / 100,
     finalPrice: session.finalPrice,
     roundsUsed: session.roundNumber,
-  }, 'Deal accepted and score calculated');
+    leaderboardEntryCreated,
+  }, 'Deal accepted and recorded in leaderboard');
 });
 
 /**

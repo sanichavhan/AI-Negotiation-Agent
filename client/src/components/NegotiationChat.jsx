@@ -13,6 +13,8 @@ const NegotiationChat = ({ product, sessionId, onDealAccepted, onDealRejected })
   const [isLoading, setIsLoading] = useState(false);
   const [dealStatus, setDealStatus] = useState(null); // 'accepted', 'rejected', null
   const [currentPrice, setCurrentPrice] = useState(product?.price || 0);
+  const [userLastOffer, setUserLastOffer] = useState(null);
+  const [isDealAcceptable, setIsDealAcceptable] = useState(false);
   const messagesEndRef = useRef(null);
 
   // Auto-scroll to bottom of chat
@@ -25,6 +27,10 @@ const NegotiationChat = ({ product, sessionId, onDealAccepted, onDealRejected })
     if (!userInput.trim() || isLoading) return;
 
     const messageText = userInput;
+    
+    // Extract price offer from user message (look for numbers like "$50" or "50")
+    const priceMatch = messageText.match(/\$?(\d+(?:\.\d{1,2})?)/);
+    const extractedOffer = priceMatch ? parseFloat(priceMatch[1]) : null;
     
     // Add user message to chat immediately
     const userMessage = {
@@ -41,6 +47,7 @@ const NegotiationChat = ({ product, sessionId, onDealAccepted, onDealRejected })
       console.log('📤 Sending message to backend...', {
         sessionId,
         messageLength: messageText.length,
+        extractedOffer,
       });
       
       // Send message to backend
@@ -58,7 +65,31 @@ const NegotiationChat = ({ product, sessionId, onDealAccepted, onDealRejected })
         
         // Track the current negotiated price
         if (apiData.newPrice || apiData.counterPrice) {
-          setCurrentPrice(apiData.newPrice || apiData.counterPrice);
+          const newAIPrice = apiData.newPrice || apiData.counterPrice;
+          setCurrentPrice(newAIPrice);
+          
+          // Check if deal is acceptable
+          // Deal is acceptable if:
+          // 1. User made an offer AND
+          // 2. User's offer >= AI's asking price
+          if (extractedOffer !== null && extractedOffer >= newAIPrice) {
+            setIsDealAcceptable(true);
+            console.log('✅ Deal is acceptable!', {
+              userOffer: extractedOffer,
+              aiPrice: newAIPrice,
+            });
+          } else if (extractedOffer !== null) {
+            console.log('⚠️ Deal not yet acceptable', {
+              userOffer: extractedOffer,
+              aiPrice: newAIPrice,
+              gap: newAIPrice - extractedOffer,
+            });
+          }
+        }
+        
+        // Track user's last offer
+        if (extractedOffer !== null) {
+          setUserLastOffer(extractedOffer);
         }
         
         // Add AI message to chat
@@ -106,6 +137,9 @@ const NegotiationChat = ({ product, sessionId, onDealAccepted, onDealRejected })
         content: errorMsg,
         timestamp: new Date(),
       });
+      
+      // Reset deal acceptable status on error
+      setIsDealAcceptable(false);
     } finally {
       setIsLoading(false);
       setLoading(false);
@@ -264,11 +298,27 @@ const NegotiationChat = ({ product, sessionId, onDealAccepted, onDealRejected })
           {/* Accept Deal Button */}
           <button
             onClick={handleAcceptDeal}
-            disabled={isLoading || messages.length === 0}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-2 rounded-lg font-semibold transition"
+            disabled={isLoading || !isDealAcceptable}
+            className={`w-full px-4 py-2 rounded-lg font-semibold transition ${
+              isDealAcceptable
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
+            }`}
           >
             ✅ Accept This Deal
           </button>
+          
+          {!isDealAcceptable && messages.length > 0 && (
+            <p className="text-xs text-orange-600 mt-2 text-center">
+              💡 Shopkeeper hasn't accepted your price yet. Keep negotiating!
+            </p>
+          )}
+          
+          {!isDealAcceptable && messages.length === 0 && (
+            <p className="text-xs text-gray-500 mt-2 text-center">
+              💡 Make an offer to start negotiation
+            </p>
+          )}
           
           <p className="text-xs text-gray-500 mt-2">
             💡 Tip: Be specific with your offer (e.g., "$50", "Will you take $45?")

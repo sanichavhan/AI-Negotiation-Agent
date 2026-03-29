@@ -29,7 +29,9 @@ const leaderboardSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for quick leaderboard queries
+// Indexes for leaderboard queries
 leaderboardSchema.index({ score: 1, createdAt: -1 });
+// Unique index on sessionId to prevent duplicate entries
+leaderboardSchema.index({ sessionId: 1 }, { unique: true, sparse: true });
 
 export default mongoose.model('Leaderboard', leaderboardSchema);

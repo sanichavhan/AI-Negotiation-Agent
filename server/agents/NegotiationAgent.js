@@ -53,7 +53,31 @@ class NegotiationAgent {
         roundNumber,
         maxRounds,
         conversationHistory = '',
+        isBelowMinimumPrice = false,
+        buyerOffer = null,
       } = negotiationState;
+
+      // Build persuasion strategy when buyer goes below minimum price
+      let belowMinimumInstructions = '';
+      if (isBelowMinimumPrice && buyerOffer !== null) {
+        const priceGap = minimumPrice - buyerOffer;
+        const gapPercentage = ((priceGap / minimumPrice) * 100).toFixed(1);
+        belowMinimumInstructions = `
+
+CRITICAL - BUYER OFFER IS EXTREMELY LOW:
+- Buyer offered: $${Math.round(buyerOffer)}
+- This is ${gapPercentage}% below your absolute lowest acceptable price
+- DO NOT reveal your exact minimum threshold to the buyer
+- DO NOT accept or agree to this price
+- Use PERSUASIVE TECHNIQUES to convince them to increase their offer:
+  * Highlight product quality, features, and value proposition
+  * Explain your costs and why you can't go lower
+  * Appeal to fairness and mutual benefit
+  * Use strategic reasoning ("This product is worth more because...")
+  * Remind them of market rates and competition
+  * Create urgency or scarcity ("Others are interested at a better price")
+  * Make a reasonable counter-offer that's still above your minimum (at least $${Math.round(minimumPrice)})`; 
+      }
 
       // Build the system and user prompts
       const systemPrompt = `You are a skilled ${strategy} ${productName} seller negotiating with a buyer.
@@ -76,6 +100,7 @@ INSTRUCTIONS:
    - Friendly: Show willingness, larger reductions (5-8%)
    - Logical: Justify price with facts, steady reductions (3-5%)
    - Psychological: Use emotions, unpredictable changes (2-10%)
+${belowMinimumInstructions}
 
 RESPONSE FORMAT:
 You MUST respond with valid JSON in this exact format:
@@ -83,13 +108,14 @@ You MUST respond with valid JSON in this exact format:
 
 CRITICAL: Always return valid JSON, never wrap it in markdown code blocks.`;
 
-      const userPrompt = `Previous conversation context:\n${conversationHistory || 'No previous messages'}\n\nBuyer's message: "${buyerMessage}"\n\nRespond with your counter-offer.`;
+      const userPrompt = `Previous conversation context:\n${conversationHistory || 'No previous messages'}\n\nBuyer's message: "${buyerMessage}"\n\nRespond with your counter-offer.${isBelowMinimumPrice ? ' Remember, you must persuade them to increase their offer without revealing your rock-bottom price.' : ''}`;
 
       // Call Mistral API with error handling
       console.log('🚀 Calling Mistral API...', {
         model: 'mistral-small-latest',
         messageCount: 2,
         promptLength: userPrompt.length,
+        belowMinimumPrice: isBelowMinimumPrice,
       });
 
       let response;
@@ -158,7 +184,13 @@ CRITICAL: Always return valid JSON, never wrap it in markdown code blocks.`;
       } catch (parseError) {
         console.error('Failed to parse AI response:', responseText);
         // Return fallback response
-        return this._generateFallbackResponse(currentPrice, minimumPrice, strategy);
+        return this._generateFallbackResponse(
+          currentPrice,
+          minimumPrice,
+          strategy,
+          isBelowMinimumPrice,
+          buyerOffer
+        );
       }
     } catch (error) {
       console.error('❌ Critical error in generateResponse:', {
@@ -177,58 +209,87 @@ CRITICAL: Always return valid JSON, never wrap it in markdown code blocks.`;
 
   /**
    * Fallback response when LLM fails
+   * Includes persuasive responses when buyer goes below minimum price
    */
-  _generateFallbackResponse(currentPrice, minimumPrice, strategy) {
+  _generateFallbackResponse(currentPrice, minimumPrice, strategy, isBelowMinimumPrice = false, buyerOffer = null) {
     const strategies = {
       aggressive: {
         factor: 0.97,
-        responses: [
+        belowMinFactor: 0.98,
+        normalResponses: [
           "I appreciate your interest, but that's too low for this product.",
           "This is a premium item. My price is fair for its quality.",
           "I can only go down slightly from here.",
         ],
+        belowMinResponses: [
+          "I appreciate your interest, but that offer doesn't work for me. This product has premium features worth more.",
+          "I can't accept such a low offer. The market value is much higher than that.",
+          "Your offer is unrealistic. I have other buyers interested at a better price.",
+          "I need a more reasonable offer. The product's quality justifies a higher price.",
+        ],
       },
       friendly: {
         factor: 0.94,
-        responses: [
+        belowMinFactor: 0.965,
+        normalResponses: [
           "I appreciate your offer! Let me see what I can do for you.",
           "You drive a hard bargain! I can adjust my price.",
           "I want to work with you. Here's my best offer.",
         ],
+        belowMinResponses: [
+          "I appreciate your offer! However, I need more to make this work. Can we find a middle ground?",
+          "You drive a hard bargain! But I do need to cover my costs. Let me offer you something better.",
+          "I really want to work with you, but I can't go that low. Let's work together on a fair price.",
+          "That's a bit low for me, but I like your negotiating style. How about a bit higher?",
+        ],
       },
       logical: {
         factor: 0.96,
-        responses: [
+        belowMinFactor: 0.97,
+        normalResponses: [
           "Based on current market value, here's my counter-offer.",
           "Let me provide a realistic adjustment based on the facts.",
           "Considering your points, I can offer this price.",
         ],
+        belowMinResponses: [
+          "Based on market analysis, your offer is below the fair value. Let me explain the costs involved.",
+          "Your offer doesn't account for the product's features and durability. A fairer price would be higher.",
+          "Considering manufacturing costs and market rates, I need at least this much.",
+          "The data shows similar items at a higher price point. Your offer doesn't reflect the value.",
+        ],
       },
       psychological: {
         factor: Math.random() * 0.1 + 0.92,
-        responses: [
+        belowMinFactor: 0.96,
+        normalResponses: [
           "This is an incredible opportunity at this price!",
           "I'm willing to make a special deal just for you.",
           "Let me give you the best price I can offer.",
+        ],
+        belowMinResponses: [
+          "I appreciate your confidence in the product! But this opportunity requires a better investment from your side.",
+          "You're showing great interest, which means you know the value. A fairer offer would show that.",
+          "This is still an incredible opportunity, but I need a price that reflects that.",
+          "Let's be fair to each other. A better offer would really make this work.",
         ],
       },
     };
 
     const strategy_config = strategies[strategy] || strategies.logical;
+    const factor = isBelowMinimumPrice ? strategy_config.belowMinFactor : strategy_config.factor;
+    const responsesArray = isBelowMinimumPrice ? strategy_config.belowMinResponses : strategy_config.normalResponses;
+    
     const newPrice = Math.max(
-      Math.round(currentPrice * strategy_config.factor),
+      Math.round(currentPrice * factor),
       minimumPrice
     );
 
     return {
       success: true,
-      response:
-        strategy_config.responses[
-          Math.floor(Math.random() * strategy_config.responses.length)
-        ],
+      response: responsesArray[Math.floor(Math.random() * responsesArray.length)],
       newPrice,
-      reasoning: `Following ${strategy} strategy`,
-      emotion: 0.5,
+      reasoning: isBelowMinimumPrice ? `Persuading buyer to increase offer - below acceptable threshold` : `Following ${strategy} strategy`,
+      emotion: isBelowMinimumPrice ? 0.6 : 0.5,
     };
   }
 

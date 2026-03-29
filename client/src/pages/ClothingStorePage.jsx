@@ -15,6 +15,29 @@ const ClothingStorePage = () => {
   const [userDetails, setUserDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isNavbarVisible, setIsNavbarVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  // Handle navbar visibility on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      // Show navbar when scrolling up, hide when scrolling down
+      if (currentScrollY < lastScrollY) {
+        // Scrolling up
+        setIsNavbarVisible(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        // Scrolling down (and past 100px threshold)
+        setIsNavbarVisible(false);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [lastScrollY]);
 
   // Fetch user details on page load
   useEffect(() => {
@@ -51,7 +74,9 @@ const ClothingStorePage = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation Bar */}
-      <nav className="bg-white shadow-sm sticky top-0 z-10">
+      <nav className={`bg-white shadow-sm fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${
+        isNavbarVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+      }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <Link to="/" className="text-2xl font-bold text-blue-600 hover:text-blue-700">
@@ -111,7 +136,7 @@ const ClothingStorePage = () => {
       </nav>
 
       {/* Main Content */}
-      <main className="py-12">
+      <main className="py-12 pt-24">
         <ClothingShowcase onProductSelect={handleProductSelect} />
       </main>
 

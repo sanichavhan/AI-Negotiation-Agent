@@ -96,13 +96,33 @@ export const getProfile = asyncHandler(async (req, res) => {
 /**
  * Update user profile
  * PUT /api/auth/profile
+ * Body: { displayName?, avatar? }
  */
 export const updateProfile = asyncHandler(async (req, res) => {
   const { displayName, avatar } = req.body;
 
+  // Validate inputs
+  if (displayName !== undefined && displayName.trim().length === 0) {
+    throw new AppError('Display name cannot be empty', 400);
+  }
+
+  if (displayName !== undefined && displayName.length > 100) {
+    throw new AppError('Display name cannot exceed 100 characters', 400);
+  }
+
   const updates = {};
-  if (displayName) updates.displayName = displayName;
-  if (avatar) updates.avatar = avatar;
+  
+  if (displayName !== undefined) {
+    updates.displayName = displayName.trim();
+  }
+  
+  if (avatar !== undefined) {
+    // Validate avatar URL or file path
+    if (avatar && avatar.length > 500) {
+      throw new AppError('Avatar URL is too long', 400);
+    }
+    updates.avatar = avatar;
+  }
 
   const user = await User.findByIdAndUpdate(req.userId, updates, {
     new: true,
@@ -113,7 +133,10 @@ export const updateProfile = asyncHandler(async (req, res) => {
     throw new AppError('User not found', 404);
   }
 
-  successResponse(res, 200, user.toJSON(), 'Profile updated');
+  successResponse(res, 200, {
+    user: user.toJSON(),
+    message: 'Profile updated successfully',
+  }, 'Profile updated');
 });
 
 /**
