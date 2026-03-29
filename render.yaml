@@ -1,0 +1,37 @@
+services:
+  # Backend API Service
+  - type: web
+    name: ai-negotiation-api
+    env: node
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: MONGODB_URI
+        scope: all
+      - key: JWT_SECRET
+        scope: all
+      - key: MISTRAL_API_KEY
+        scope: all
+      - key: CLIENT_URL
+        scope: all
+        value: "https://ai-negotiation-client.onrender.com"
+      - key: JWT_EXPIRE
+        value: 7d
+
+  # Frontend Web Service
+  - type: web
+    name: ai-negotiation-client
+    env: node
+    plan: free
+    buildCommand: cd client && npm install && npm run build
+    startCommand: npm install -g serve && serve -s dist -l 3000
+    envVars:
+      - key: VITE_API_URL
+        value: "https://ai-negotiation-api.onrender.com"
+      - key: VITE_API_TIMEOUT
+        value: 30000
