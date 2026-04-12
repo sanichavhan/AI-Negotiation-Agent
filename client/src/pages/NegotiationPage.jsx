@@ -4,77 +4,37 @@ import { useAuth } from '../context/AuthContext';
 import { useNegotiation } from '../context/NegotiationContext';
 import { negotiationApi } from '../api/endpoints';
 import NegotiationChat from '../components/NegotiationChat';
+import { GlassCard, Button, LoadingSpinner } from '../components/ui';
 
 /**
- * NegotiationPage
- * Displays the negotiation chat interface for a selected product
- * User negotiates price with AI shopkeeper
+ * NegotiationPage — The tactical bargaining dashboard
  */
 const NegotiationPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { currentSession, startSession, resetSession } = useNegotiation();
+  const { startSession } = useNegotiation();
   
   const [product, setProduct] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [error, setError] = useState(null);
-  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
 
-  // Handle header visibility on scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-
-      // Show header when scrolling up, hide when scrolling down
-      if (currentScrollY < lastScrollY) {
-        // Scrolling up
-        setIsHeaderVisible(true);
-      } else if (currentScrollY > lastScrollY && currentScrollY > 50) {
-        // Scrolling down (and past 50px threshold)
-        setIsHeaderVisible(false);
-      }
-
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
-
-  // Get product from navigation state
   useEffect(() => {
     const selectedProduct = location.state?.product;
-    const token = localStorage.getItem('token');
-    
-    console.log('🔐 NegotiationPage initialized:', {
-      hasProduct: !!selectedProduct,
-      hasToken: !!token,
-      tokenLength: token?.length,
-      user: user?.email,
-    });
-    
     if (!selectedProduct) {
-      setError('No product selected. Redirecting...');
+      setError('No product selected. Redirecting to vault...');
       setTimeout(() => navigate('/products'), 2000);
       return;
     }
-
     setProduct(selectedProduct);
     initializeNegotiationSession(selectedProduct);
-  }, [location]);
+  }, [location, navigate]);
 
-  /**
-   * Initialize a new negotiation session with the backend
-   */
   const initializeNegotiationSession = async (selectedProduct) => {
     try {
       setIsInitializing(true);
       setError(null);
-
-      // Start a new negotiation session with the AI
       const response = await negotiationApi.startSession({
         productId: selectedProduct.id,
         productTitle: selectedProduct.title,
@@ -87,234 +47,146 @@ const NegotiationPage = () => {
         setSessionId(session._id || session.id);
         startSession(session);
       } else {
-        setError(response.data.message || 'Failed to start negotiation');
+        setError(response.data.message || 'Transmission failed.');
       }
     } catch (err) {
-      console.error('Error starting negotiation:', err);
-      setError(
-        err.response?.data?.message ||
-          'Failed to initialize negotiation. Please try again.'
-      );
+      setError('Uplink failed. Please check your credentials.');
     } finally {
       setIsInitializing(false);
     }
   };
 
   const handleDealAccepted = async (dealData) => {
-    try {
-      const response = await negotiationApi.acceptDeal(sessionId);
-      if (response.data.success) {
-        navigate('/products', {
-          state: { 
-            dealCompleted: true,
-            product: product,
-            finalPrice: dealData.finalPrice,
-          },
-        });
-      }
-    } catch (err) {
-      console.error('Error completing purchase:', err);
-      setError('Failed to complete the purchase. Please try again.');
-    }
+    navigate('/products', {
+      state: { 
+        dealCompleted: true,
+        product: product,
+        finalPrice: dealData.finalPrice,
+      },
+    });
   };
 
   if (isInitializing) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin text-4xl mb-4">⏳</div>
-          <p className="text-lg font-semibold text-gray-700">
-            Starting negotiation...
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            Connecting to shopkeeper...
-          </p>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <LoadingSpinner size="xl" />
+        <p className="mt-8 text-on-surface-variant font-label font-bold uppercase tracking-[0.3em] animate-pulse">
+          Establishing Secure Uplink...
+        </p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center max-w-md">
-          <p className="text-2xl mb-4">❌</p>
-          <p className="text-lg font-semibold text-red-700 mb-4">{error}</p>
-          <button
-            onClick={() => navigate('/products')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
-          >
-            Back to Products
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (!product || !sessionId) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-lg font-semibold text-gray-700 mb-4">
-            Loading negotiation...
-          </p>
-          <button
-            onClick={() => navigate('/products')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg"
-          >
-            Back to Products
-          </button>
-        </div>
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <GlassCard tier="elevated" glow="danger" className="max-w-md text-center py-12">
+          <div className="text-5xl mb-6">🚫</div>
+          <h2 className="text-2xl font-headline font-bold text-danger mb-4">Access Denied</h2>
+          <p className="text-on-surface-variant mb-10">{error}</p>
+          <Button variant="primary" as="button" onClick={() => navigate('/products')}>
+            Return to Marketplace
+          </Button>
+        </GlassCard>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
-      {/* Header */}
-      <header className={`bg-white shadow-sm border-b fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-in-out ${
-        isHeaderVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
-      }`}>
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => navigate('/products')}
-              className="text-2xl hover:scale-110 transition"
-            >
-              ←
-            </button>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-800">
-                Negotiation Chat
-              </h1>
-              <p className="text-sm text-gray-500">
-                Chatting with shopkeeper about {product.title}
-              </p>
+    <div className="relative min-h-[calc(100vh-64px)] p-4 md:p-8 flex flex-col lg:flex-row gap-8 max-w-7xl mx-auto items-stretch">
+      {/* ── Background Effects ── */}
+      <div className="fixed inset-0 bg-grid opacity-10 pointer-events-none -z-10" />
+      <div className="fixed top-0 right-0 w-[800px] h-[800px] orb-violet opacity-10 pointer-events-none -z-10" />
+
+      {/* ── Left Sidebar (Product Intelligence) ── */}
+      <aside className="lg:w-1/3 flex flex-col gap-6 animate-fade-in-right">
+        <GlassCard tier="low" className="p-0 overflow-hidden">
+          <div className="relative h-48 bg-surface-dim flex items-center justify-center">
+            <img src={product.image} alt={product.title} className="h-full w-full object-contain mix-blend-lighten p-6" />
+            <div className="absolute top-4 left-4">
+              <span className="badge badge-cyan text-[10px]">MARKET OBJECT</span>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <img
-              src={product.image}
-              alt={product.title}
-              className="w-16 h-16 object-cover rounded-lg border-2 border-blue-500"
-            />
-            <div>
-              <p className="font-semibold text-gray-700">
-                ${product.price.toFixed(2)}
-              </p>
-              <p className="text-xs text-gray-500">Original Price</p>
+          <div className="p-6">
+            <h2 className="text-xl font-headline font-bold text-on-surface mb-2">{product.title}</h2>
+            <div className="flex items-center gap-3 py-3 border-y border-outline-variant/10 mb-6">
+              <span className="text-display-xs font-bold text-gradient-violet">${product.price.toFixed(2)}</span>
+              <span className="text-[10px] font-label font-bold text-on-surface-variant/40 uppercase tracking-widest leading-none">Standard Rate</span>
+            </div>
+            
+            <div className="space-y-4">
+              <h3 className="text-[10px] font-label font-bold text-secondary uppercase tracking-[0.2em]">Target Intelligence</h3>
+              {[
+                { label: 'Merchant', val: 'AI Custodian' },
+                { label: 'Volatility', val: 'High' },
+                { label: 'Max Discount', val: '25%' },
+              ].map(stat => (
+                <div key={stat.label} className="flex justify-between text-sm">
+                  <span className="text-on-surface-variant">{stat.label}:</span>
+                  <span className="text-on-surface font-bold">{stat.val}</span>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </header>
+        </GlassCard>
 
-      {/* Main Chat Area */}
-      <main className="max-w-4xl mx-auto px-4 py-8 pt-20">
-        <div className="h-[600px]">
-          <NegotiationChat
-            product={product}
-            sessionId={sessionId}
-            onDealAccepted={handleDealAccepted}
-            onDealRejected={() => {}}
-          />
-        </div>
-      </main>
+        <GlassCard tier="low" glow="violet" padding="p-6">
+          <h3 className="text-xs font-label font-bold text-primary uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+            <span className="text-base text-primary">💡</span> Strategy Tips
+          </h3>
+          <ul className="space-y-3 text-sm text-on-surface-variant">
+            <li className="flex gap-3">
+              <span className="text-primary font-bold">1.</span>
+              Start with a 50-60% anchor offer to gauge reaction.
+            </li>
+            <li className="flex gap-3">
+              <span className="text-primary font-bold">2.</span>
+              Provide rationales (e.g., condition, local competition).
+            </li>
+            <li className="flex gap-3">
+              <span className="text-primary font-bold">3.</span>
+              Observe the Leverage Meter for bargaining efficiency.
+            </li>
+          </ul>
+        </GlassCard>
+      </aside>
 
-      {/* Info Footer */}
-      <footer className="bg-gradient-to-r from-blue-50 to-purple-50 border-t border-blue-200 mt-12">
-        <div className="max-w-6xl mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-            {/* Negotiation Tips */}
-            <div className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition">
-              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="text-2xl">💡</span> Negotiation Tips
-              </h4>
-              <ul className="text-sm text-gray-600 space-y-2">
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-500 font-bold">→</span>
-                  <span>Start with 50-60% of original price</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-500 font-bold">→</span>
-                  <span>Increase gradually (5-10% per round)</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-500 font-bold">→</span>
-                  <span>Be respectful and logical</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-blue-500 font-bold">→</span>
-                  <span>Use justifications for offers</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* AI Shopkeeper Rules */}
-            <div className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition">
-              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="text-2xl">🤖</span> AI Shopkeeper Rules
-              </h4>
-              <ul className="text-sm text-gray-600 space-y-2">
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-500 font-bold">•</span>
-                  <span>Will never reveal minimum price</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-500 font-bold">•</span>
-                  <span>Uses strategic persuasion tactics</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-500 font-bold">•</span>
-                  <span>Accepts fair offers gracefully</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-purple-500 font-bold">•</span>
-                  <span>Provides realistic counter-offers</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* Success Metrics */}
-            <div className="bg-white rounded-lg p-6 shadow-sm hover:shadow-md transition">
-              <h4 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
-                <span className="text-2xl">🎯</span> Your Goal
-              </h4>
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600">
-                  Get the best price while maintaining a win-win situation with the shopkeeper.
-                </p>
-                <div className="bg-blue-100 border-l-4 border-blue-500 p-3 rounded">
-                  <p className="text-xs font-semibold text-blue-900">💰 Pro Tip:</p>
-                  <p className="text-xs text-blue-800 mt-1">
-                    The more you save, the higher your leaderboard ranking!
-                  </p>
+      {/* ── Main Chat Deck ── */}
+      <main className="lg:w-2/3 flex-grow animate-fade-in-up">
+        <GlassCard tier="elevated" padding="p-0" className="h-full flex flex-col min-h-[600px] border-outline-variant/20 shadow-bloom-violet/10">
+          {/* Header */}
+          <div className="px-6 py-4 bg-surface-high/40 border-b border-outline-variant/20 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-astral-gradient flex items-center justify-center text-xl shadow-bloom-violet sm:flex">
+                🤝
+              </div>
+              <div>
+                <h2 className="text-base font-headline font-bold text-on-surface">Terminal Active</h2>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  <span className="text-[10px] font-label font-bold text-on-surface-variant/60 uppercase tracking-widest">Secure Communication</span>
                 </div>
               </div>
             </div>
+            
+            <Button variant="ghost" size="sm" onClick={() => navigate('/products')} className="text-[10px] font-bold tracking-widest uppercase">
+              Abort Session
+            </Button>
           </div>
 
-          {/* Bottom Info Bar */}
-          <div className="bg-white rounded-lg p-4 flex flex-col md:flex-row items-center justify-between gap-4 border border-blue-200">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <span className="text-xl">❓</span>
-              <span><strong>Need help?</strong> Check our negotiation guides and best practices.</span>
-            </div>
-            <a 
-              href="/leaderboard" 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition whitespace-nowrap"
-            >
-              View Leaderboard →
-            </a>
+          {/* Chat Component */}
+          <div className="flex-grow">
+            <NegotiationChat
+              product={product}
+              sessionId={sessionId}
+              onDealAccepted={handleDealAccepted}
+            />
           </div>
-
-          {/* Footer Copyright */}
-          <div className="text-center text-gray-500 text-xs mt-6 border-t border-gray-200 pt-6">
-            <p>&copy; 2026 AI Negotiation Agent | Master negotiation skills one deal at a time</p>
-          </div>
-        </div>
-      </footer>
+        </GlassCard>
+      </main>
     </div>
   );
 };
 
 export default NegotiationPage;
+

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { leaderboardApi } from '../api/endpoints';
+import { GlassCard, LoadingSpinner, Button } from '../components/ui';
 
+/**
+ * LeaderboardPage — The Global Negotiation Index
+ */
 const LeaderboardPage = () => {
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,28 +16,16 @@ const LeaderboardPage = () => {
     try {
       setLoading(true);
       setError(null);
-      // Use the getLeaderboard endpoint but with sortBy createdAt (most recent first)
       const response = await leaderboardApi.getRecentPurchases(pageNum, 50);
       if (response.data.success) {
         setPurchases(response.data.data.purchases || []);
         setTotalPages(response.data.data.pages);
         setPage(pageNum);
       } else {
-        setError(response.data.message || 'Failed to load recent purchases');
+        setError(response.data.message || 'Failed to sync marketplace data.');
       }
     } catch (err) {
-      console.error('Error fetching recent purchases:', err);
-      // Fallback: try to get leaderboard data and reverse it
-      try {
-        const response = await leaderboardApi.getLeaderboard(1, 50, 'totalSavings');
-        if (response.data.success) {
-          const allEntries = response.data.data.leaderboard || [];
-          setPurchases(allEntries.reverse());
-          setTotalPages(1);
-        }
-      } catch (fallbackErr) {
-        setError('Failed to load recent purchases');
-      }
+      setError('Connection to indexing service lost.');
     } finally {
       setLoading(false);
     }
@@ -52,9 +43,7 @@ const LeaderboardPage = () => {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
+    return new Date(dateString).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
@@ -63,146 +52,134 @@ const LeaderboardPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-4xl font-bold">🛍️ Recent Purchases</h1>
-              <p className="text-blue-100 mt-2">Latest Negotiated Deals on Our Platform</p>
-            </div>
-            <Link
-              to="/profile"
-              className="bg-white text-indigo-600 hover:bg-gray-100 px-6 py-2 rounded-lg font-semibold transition"
-            >
-              My Profile
-            </Link>
-          </div>
-        </div>
+    <div className="min-h-[calc(100vh-64px)] py-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      {/* ── Page Header ────────────────────────────────────────── */}
+      <div className="mb-12 animate-fade-in">
+        <h1 className="text-display-md font-bold mb-3">Recent Transactions</h1>
+        <p className="text-on-surface-variant max-w-2xl">
+          Global negotiation broadcast. Monitor live contract finalization and bargaining efficiency across the network.
+        </p>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded">
-            {error}
-          </div>
-        )}
-
-        {/* Recent Purchases Table */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gradient-to-r from-gray-800 to-gray-900 text-white">
-              <tr>
-                <th className="px-6 py-4 text-left text-sm font-bold">User</th>
-                <th className="px-6 py-4 text-left text-sm font-bold">Product</th>
-                <th className="px-6 py-4 text-right text-sm font-bold">Original Price</th>
-                <th className="px-6 py-4 text-right text-sm font-bold">Final Price</th>
-                <th className="px-6 py-4 text-right text-sm font-bold">Discount</th>
-                <th className="px-6 py-4 text-right text-sm font-bold">Discount %</th>
-                <th className="px-6 py-4 text-right text-sm font-bold">Rounds</th>
-                <th className="px-6 py-4 text-right text-sm font-bold">Date</th>
+      {/* ── Data Grid ──────────────────────────────────────────── */}
+      <GlassCard tier="low" padding="p-0" className="overflow-hidden animate-fade-in-up">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-surface-high/60 border-b border-outline-variant/30">
+                <th className="px-6 py-5 text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-[0.2em]">Operator</th>
+                <th className="px-6 py-5 text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-[0.2em]">Asset</th>
+                <th className="px-6 py-5 text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-[0.2em] text-right">Standard Rate</th>
+                <th className="px-6 py-5 text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-[0.2em] text-right">Settlement</th>
+                <th className="px-6 py-5 text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-[0.2em] text-center">Bargain</th>
+                <th className="px-6 py-5 text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-[0.2em] text-right">Timestamp</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-outline-variant/10">
               {loading ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
-                    <div className="flex justify-center items-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                      <span className="ml-3">Loading recent purchases...</span>
-                    </div>
+                  <td colSpan="6" className="px-6 py-20 text-center">
+                    <LoadingSpinner size="md" />
                   </td>
                 </tr>
               ) : purchases.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
-                    No purchases recorded yet
+                  <td colSpan="6" className="px-6 py-20 text-center text-on-surface-variant font-label text-xs uppercase tracking-widest opacity-40">
+                    No active sessions detected
                   </td>
                 </tr>
               ) : (
-                purchases.map((purchase, idx) => (
-                  <tr
-                    key={idx}
-                    className={`border-b transition hover:bg-indigo-50 ${
-                      idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'
-                    }`}
-                  >
-                    <td className="px-6 py-4 font-semibold text-gray-900">
-                      {purchase.username || 'Unknown'}
+                purchases.map((purchase, idx) => {
+                  const isTop3 = page === 1 && idx < 3;
+                  const rankClass = isTop3 
+                    ? idx === 0 ? 'border-l-4 border-amber-400 shadow-[inset_4px_0_12px_rgba(251,191,36,0.1)]'
+                    : idx === 1 ? 'border-l-4 border-slate-300 shadow-[inset_4px_0_12px_rgba(203,213,225,0.1)]'
+                    : 'border-l-4 border-orange-600 shadow-[inset_4px_0_12px_rgba(234,88,12,0.1)]'
+                    : '';
+                  
+                  return (
+                    <tr 
+                      key={idx} 
+                      className={`group hover:bg-surface-high/40 transition-colors duration-300 animate-fade-in-up ${rankClass}`}
+                      style={{ animationDelay: `${Math.min(idx * 50, 600)}ms` }}
+                    >
+                      <td className="px-6 py-5">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border border-outline-variant/20 ${
+                            isTop3 ? 'bg-primary text-background' : 'bg-surface-high text-primary'
+                          }`}>
+                            {isTop3 ? ['🥇', '🥈', '🥉'][idx] : purchase.username?.charAt(0).toUpperCase() || '?'}
+                          </div>
+                        <span className="font-bold text-on-surface text-sm">
+                          {purchase.username || 'ANON_USER'}
+                        </span>
+                      </div>
                     </td>
-                    <td className="px-6 py-4 text-gray-700">
-                      {purchase.productName || 'Unknown Product'}
+                    <td className="px-6 py-5 font-medium text-sm text-on-surface-variant">
+                      {purchase.productName}
                     </td>
-                    <td className="px-6 py-4 text-right text-gray-700 font-semibold">
-                      ${purchase.initialPrice || '0.00'}
+                    <td className="px-6 py-5 text-right font-medium text-xs text-on-surface-variant/60 line-through">
+                      ${purchase.initialPrice?.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 text-right text-blue-600 font-bold">
-                      ${purchase.finalPrice || '0.00'}
+                    <td className="px-6 py-5 text-right font-bold text-sm text-on-surface">
+                      ${purchase.finalPrice?.toFixed(2)}
                     </td>
-                    <td className="px-6 py-4 text-right text-green-600 font-bold">
-                      💰 ${purchase.discount?.toFixed(2) || '0.00'}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-semibold">
-                        {purchase.discountPercentage?.toFixed(1) || '0'}%
+                    <td className="px-6 py-5 text-center">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success/10 text-success text-[10px] font-bold uppercase tracking-wider border border-success/20 shadow-glow-success/10">
+                        {purchase.discountPercentage?.toFixed(1)}% OFF
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-center text-gray-700 font-semibold">
-                      {purchase.roundsUsed || '0'}
-                    </td>
-                    <td className="px-6 py-4 text-right text-gray-600 text-sm">
+                    <td className="px-6 py-5 text-right font-label text-[10px] text-on-surface-variant/40">
                       {formatDate(purchase.completedAt || purchase.lastDeal)}
                     </td>
                   </tr>
-                ))
-              )}
+                );
+              })
+            )}
             </tbody>
           </table>
         </div>
+      </GlassCard>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-6">
-            <button
-              onClick={() => handlePageChange(page - 1)}
-              disabled={page === 1}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-400"
-            >
-              Previous
-            </button>
-            <div className="flex gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => handlePageChange(pageNum)}
-                    className={`px-3 py-2 rounded ${
-                      page === pageNum
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-300 text-gray-700 hover:bg-gray-400'
-                    }`}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              onClick={() => handlePageChange(page + 1)}
-              disabled={page === totalPages}
-              className="px-4 py-2 bg-gray-300 text-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-400"
-            >
-              Next
-            </button>
+      {/* ── Pagination ─────────────────────────────────────────── */}
+      {!loading && totalPages > 1 && (
+        <div className="mt-8 flex items-center justify-center gap-4 animate-fade-in">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handlePageChange(page - 1)} 
+            disabled={page === 1}
+          >
+            PREV
+          </Button>
+          <div className="flex items-center gap-2">
+            {[...Array(Math.min(5, totalPages))].map((_, i) => (
+              <button
+                key={i + 1}
+                onClick={() => handlePageChange(i + 1)}
+                className={`w-8 h-8 rounded-lg font-label text-xs font-bold transition-all duration-300 ${
+                  page === i + 1 
+                    ? 'bg-primary text-white shadow-bloom-violet' 
+                    : 'bg-surface-high/40 text-on-surface-variant hover:bg-surface-high hover:text-on-surface'
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => handlePageChange(page + 1)} 
+            disabled={page === totalPages}
+          >
+            NEXT
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
 
 export default LeaderboardPage;
+

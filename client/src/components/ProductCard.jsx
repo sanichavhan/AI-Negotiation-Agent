@@ -1,122 +1,115 @@
-/**
- * ProductCard Component
- * Reusable card component for displaying product information
- * 
- * Props:
- * - product: { id, title, price, image, category, rating, description }
- * - onSelect: Function to call when product is selected
- * - onClick: Function to call when card is clicked
- * - variant: 'default' | 'compact' | 'expanded'
- * - showRating: Boolean to show rating
- */
-
 import React from 'react';
+import { GlassCard, Button } from './ui';
 
+/**
+ * ProductCard — Redesigned with Astral Architect glassmorphism
+ */
 const ProductCard = ({
   product,
   onSelect,
   onClick,
-  variant = 'default',
   showRating = true,
 }) => {
   if (!product) return null;
 
-  const { id, title, price, image, category, rating = {} } = product;
+  const { title, price, image, category, rating = {} } = product;
+  const displayTitle = title.length > 55 ? `${title.substring(0, 52)}...` : title;
 
-  // Truncate title if too long
-  const displayTitle = title.length > 50 ? `${title.substring(0, 50)}...` : title;
-
-  const handleSelect = () => {
-    if (onSelect) {
-      onSelect(product);
-    }
+  const handleSelect = (e) => {
+    e.stopPropagation();
+    if (onSelect) onSelect(product);
   };
 
   const handleClick = () => {
-    if (onClick) {
-      onClick(product);
-    }
+    if (onClick) onClick(product);
   };
 
   return (
-    <div
-      className={`
-        bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300
-        overflow-hidden cursor-pointer h-full flex flex-col w-full
-      `}
+    <GlassCard
+      hover
+      padding="p-0"
+      className="flex flex-col h-full animate-fade-in group"
       onClick={handleClick}
     >
-      {/* Product Image */}
-      <div className="relative bg-gray-100 overflow-hidden h-48 sm:h-56 flex items-center justify-center">
+      {/* ── Product Image Container ──────────────────────────── */}
+      <div className="relative h-56 overflow-hidden rounded-t-xl bg-surface-dim flex items-center justify-center p-6 scan-line">
+        {/* Subtle background glow for image */}
+        <div className="absolute inset-0 bg-violet-orb opacity-10 group-hover:opacity-20 transition-opacity" />
+        
         <img
           src={image}
           alt={title}
-          className="h-full w-full object-cover hover:scale-105 transition-transform duration-300"
+          className="h-full w-full object-contain mix-blend-lighten group-hover:scale-110 transition-transform duration-500"
           onError={(e) => {
             e.target.src = 'https://via.placeholder.com/300x300?text=No+Image';
           }}
         />
+
         {/* Category Badge */}
-        <div className="absolute top-2 right-2 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold capitalize">
-          {category}
+        <div className="absolute top-4 left-4">
+          <span className="badge badge-violet backdrop-blur-md opacity-90">
+            {category}
+          </span>
         </div>
       </div>
 
-      {/* Product Info */}
-      <div className="p-4 sm:p-5 flex-grow flex flex-col">
+      {/* ── Product Info ────────────────────────────────────── */}
+      <div className="p-5 flex-grow flex flex-col">
         {/* Title */}
-        <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-2 line-clamp-2">
+        <h3 className="text-title-lg text-on-surface mb-2 line-clamp-2 leading-snug group-hover:text-primary transition-colors">
           {displayTitle}
         </h3>
 
-        {/* Rating (if show rating is true) */}
-        {showRating && rating.rate && (
-          <div className="flex items-center mb-3">
-            <div className="flex text-yellow-400">
-              {[...Array(5)].map((_, i) => (
-                <span key={i} className={i < Math.round(rating.rate) ? '⭐' : '☆'}>
-                  {i < Math.round(rating.rate) ? '⭐' : '☆'}
+        {/* Rating */}
+        {showRating && (
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex text-amber-400 text-xs">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <span key={i} className={i < Math.round(rating.rate || 0) ? 'fill-current' : 'text-on-surface-variant/30'}>
+                  ★
                 </span>
               ))}
             </div>
-            <span className="text-xs text-gray-600 ml-2">
-              ({rating.count || 0} reviews)
+            <span className="text-[10px] font-label font-bold text-on-surface-variant/60 uppercase tracking-widest leading-none mt-0.5">
+              {rating.count || 0} REVIEWS
             </span>
           </div>
         )}
 
-        {/* Price */}
-        <div className="mb-4">
-          <p className="text-2xl font-bold text-green-600">${price.toFixed(2)}</p>
-          <p className="text-xs text-gray-500 mt-1">Original Price</p>
-        </div>
-
-        {/* Discount Info */}
-        <div className="bg-red-50 border border-red-200 rounded px-3 py-2 mb-4">
-          <p className="text-xs text-red-700 font-semibold">
-            💰 Negotiate for 10-25% OFF
-          </p>
+        {/* Price Section */}
+        <div className="mb-6">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-headline-sm font-bold text-gradient-cyan">
+              ${price.toFixed(2)}
+            </span>
+            <span className="text-[10px] font-label font-bold text-on-surface-variant/40 uppercase tracking-wider">
+              List Price
+            </span>
+          </div>
+          
+          {/* Negotiation Opportunity */}
+          <div className="mt-2 flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary/5 border border-secondary/10 w-fit">
+            <span className="text-secondary text-xs">⚡</span>
+            <span className="text-[10px] font-label font-bold text-secondary uppercase tracking-widest">
+              Available for Negotiation
+            </span>
+          </div>
         </div>
 
         {/* Action Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleSelect();
-          }}
-          className="
-            w-full mt-auto bg-gradient-to-r from-blue-500 to-blue-600 
-            hover:from-blue-600 hover:to-blue-700
-            text-white font-semibold py-2 px-4 rounded-lg
-            transition-all duration-300 transform hover:scale-105
-            focus:outline-none focus:ring-2 focus:ring-blue-400
-          "
+        <Button
+          variant="primary"
+          fullWidth
+          className="mt-auto group/btn"
+          onClick={handleSelect}
+          iconRight={<span className="group-hover/btn:translate-x-1 transition-transform">→</span>}
         >
-          🤝 Start Negotiation
-        </button>
+          Start Negotiation
+        </Button>
       </div>
-    </div>
+    </GlassCard>
   );
 };
 
 export default ProductCard;
+

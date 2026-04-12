@@ -1,23 +1,48 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNegotiation } from '../context/NegotiationContext';
 import { negotiationApi } from '../api/endpoints';
+import { GlassCard, Button, LoadingSpinner } from './ui';
 
 /**
- * NegotiationChat Component
- * Displays chat messages between user and AI shopkeeper
- * Handles price negotiation and deal acceptance
+ * LeverageMeter — Visual indicator of negotiation success
  */
-const NegotiationChat = ({ product, sessionId, onDealAccepted, onDealRejected }) => {
+const LeverageMeter = ({ current, original, target = 0.75 }) => {
+  const discount = original > 0 ? ((original - current) / original) * 100 : 0;
+  const targetPct = (1 - target) * 100; // e.g., 25% discount
+  const progress = Math.min((discount / targetPct) * 100, 100);
+  
+  return (
+    <div className="w-full space-y-2 mb-6">
+      <div className="flex justify-between items-end">
+        <span className="text-[10px] font-label font-bold text-on-surface-variant uppercase tracking-widest">
+          Bargain Leverage
+        </span>
+        <span className="text-sm font-headline font-bold text-primary">
+          {discount.toFixed(1)}% <span className="text-[10px] text-on-surface-variant/60 font-medium">OFF</span>
+        </span>
+      </div>
+      <div className="h-1.5 w-full bg-surface-high rounded-full overflow-hidden border border-outline-variant/10">
+        <div 
+          className="h-full bg-astral-gradient transition-all duration-700 ease-out shadow-[0_0_12px_rgba(124,58,237,0.4)]"
+          style={{ width: `${Math.max(progress, 2)}%` }}
+        />
+      </div>
+    </div>
+  );
+};
+
+/**
+ * NegotiationChat — High-fidelity terminal for AI bargaining
+ */
+const NegotiationChat = ({ product, sessionId, onDealAccepted }) => {
   const { messages, addMessage, incrementRound, setLoading } = useNegotiation();
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [dealStatus, setDealStatus] = useState(null); // 'accepted', 'rejected', null
+  const [dealStatus, setDealStatus] = useState(null);
   const [currentPrice, setCurrentPrice] = useState(product?.price || 0);
-  const [userLastOffer, setUserLastOffer] = useState(null);
   const [isDealAcceptable, setIsDealAcceptable] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll to bottom of chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -27,119 +52,45 @@ const NegotiationChat = ({ product, sessionId, onDealAccepted, onDealRejected })
     if (!userInput.trim() || isLoading) return;
 
     const messageText = userInput;
-    
-    // Extract price offer from user message (look for numbers like "$50" or "50")
     const priceMatch = messageText.match(/\$?(\d+(?:\.\d{1,2})?)/);
     const extractedOffer = priceMatch ? parseFloat(priceMatch[1]) : null;
     
-    // Add user message to chat immediately
-    const userMessage = {
+    addMessage({
       role: 'user',
       content: messageText,
       timestamp: new Date(),
-    };
-    addMessage(userMessage);
+    });
     setUserInput('');
     setIsLoading(true);
     setLoading(true);
 
     try {
-      console.log('📤 Sending message to backend...', {
-        sessionId,
-        messageLength: messageText.length,
-        extractedOffer,
-      });
-      
-      // Send message to backend
-      const response = await negotiationApi.sendMessage(sessionId, {
-        message: messageText,
-      });
-
-      console.log('✅ Response received:', response.data);
-
+      const response = await negotiationApi.sendMessage(sessionId, { message: messageText });
       if (response.data.success) {
         const apiData = response.data.data;
+        const aiResponseText = apiData.message || apiData.aiResponse || 'No response';
         
-        // Get AI message - try multiple possible field names
-        const aiResponseText = apiData.message || apiData.aiResponse || apiData.aiMessage || 'No response';
-        
-        // Track the current negotiated price
         if (apiData.newPrice || apiData.counterPrice) {
           const newAIPrice = apiData.newPrice || apiData.counterPrice;
           setCurrentPrice(newAIPrice);
-          
-          // Check if deal is acceptable
-          // Deal is acceptable if:
-          // 1. User made an offer AND
-          // 2. User's offer >= AI's asking price
           if (extractedOffer !== null && extractedOffer >= newAIPrice) {
             setIsDealAcceptable(true);
-            console.log('✅ Deal is acceptable!', {
-              userOffer: extractedOffer,
-              aiPrice: newAIPrice,
-            });
-          } else if (extractedOffer !== null) {
-            console.log('⚠️ Deal not yet acceptable', {
-              userOffer: extractedOffer,
-              aiPrice: newAIPrice,
-              gap: newAIPrice - extractedOffer,
-            });
           }
         }
         
-        // Track user's last offer
-        if (extractedOffer !== null) {
-          setUserLastOffer(extractedOffer);
-        }
-        
-        // Add AI message to chat
-        const aiMessage = {
+        addMessage({
           role: 'ai',
           content: aiResponseText,
           timestamp: new Date(),
-        };
-        addMessage(aiMessage);
+        });
         incrementRound();
-
-        // No automatic deal completion - user must click "Accept Deal" button
-        // This allows continuous negotiation without time limits
-      } else {
-        throw new Error(response.data.message || 'Failed to get AI response');
       }
     } catch (error) {
-      console.error('❌ Error sending message:', error);
-      console.error('Error details:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        message: error.response?.data?.error?.message,
-        url: error.config?.url,
-      });
-      
-      // Determine the actual error message
-      let errorMsg = 'Failed to send message';
-      
-      if (error.response?.status === 401) {
-        errorMsg = '❌ Authentication failed. Please log in again.';
-      } else if (error.response?.status === 404) {
-        errorMsg = '❌ Session not found. Please start a new negotiation.';
-      } else if (error.response?.status === 500) {
-        errorMsg = '❌ Server error. Please try again.';
-      } else if (error.response?.data?.error?.message) {
-        errorMsg = `❌ ${error.response.data.error.message}`;
-      } else if (error.response?.data?.message) {
-        errorMsg = `❌ ${error.response.data.message}`;
-      } else if (error.message) {
-        errorMsg = `❌ ${error.message}`;
-      }
-      
       addMessage({
         role: 'system',
-        content: errorMsg,
+        content: `Connection error. Please retry.`,
         timestamp: new Date(),
       });
-      
-      // Reset deal acceptable status on error
-      setIsDealAcceptable(false);
     } finally {
       setIsLoading(false);
       setLoading(false);
@@ -149,202 +100,130 @@ const NegotiationChat = ({ product, sessionId, onDealAccepted, onDealRejected })
   const handleAcceptDeal = async () => {
     try {
       const response = await negotiationApi.acceptDeal(sessionId);
-      
       if (response.data.success) {
         setDealStatus('accepted');
-        addMessage({
-          role: 'system',
-          content: `✅ Deal accepted! Shopkeeper agreed to ${product.title} at $${currentPrice}. Moving to checkout...`,
-          timestamp: new Date(),
-        });
-        
-        // Call the parent callback after a short delay
         setTimeout(() => {
-          if (onDealAccepted) {
-            onDealAccepted({
-              finalPrice: currentPrice,
-              sessionId,
-            });
-          }
+          if (onDealAccepted) onDealAccepted({ finalPrice: currentPrice, sessionId });
         }, 1500);
-      } else {
-        addMessage({
-          role: 'system',
-          content: '❌ Failed to accept deal. Please try again.',
-          timestamp: new Date(),
-        });
       }
     } catch (error) {
-      console.error('Error accepting deal:', error);
-      const errorMsg = error.response?.data?.message || 'Failed to accept deal';
-      addMessage({
-        role: 'system',
-        content: `❌ Error: ${errorMsg}`,
-        timestamp: new Date(),
-      });
+      console.error(error);
     }
   };
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-lg">
-      {/* Product Header */}
-      <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4">
-        <h2 className="text-xl font-bold">{product.title}</h2>
-        <p className="text-sm opacity-90">Original Price: ${product.price}</p>
-      </div>
-
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* ── Chat Canvas ────────────────────────────────────────── */}
+      <div className="flex-grow overflow-y-auto px-6 py-8 space-y-6 scrollbar-thin scrollbar-thumb-outline-variant/20 hover:scrollbar-thumb-outline-variant/40">
         {messages.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <p className="text-gray-500 text-lg mb-2">👋 Let's negotiate!</p>
-              <p className="text-gray-400 text-sm">
-                Make an offer for {product.title}
-              </p>
-            </div>
+          <div className="h-full flex flex-col items-center justify-center opacity-40 animate-pulse">
+            <div className="text-6xl mb-4">💬</div>
+            <p className="font-label font-bold uppercase tracking-[0.2em] text-xs">
+              Awaiting Initial Transmission
+            </p>
           </div>
         ) : (
           messages.map((msg, idx) => (
-            <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div
-                className={`max-w-xs px-4 py-2 rounded-lg ${
-                  msg.role === 'user'
-                    ? 'bg-blue-600 text-white rounded-br-none'
+            <div 
+              key={idx} 
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in-up`}
+              style={{ animationDelay: `${idx * 50}ms` }}
+            >
+              <div className={`max-w-[85%] md:max-w-[70%] ${msg.role === 'user' ? 'order-2' : 'order-1'}`}>
+                <div className={`
+                  relative px-5 py-4 rounded-2xl text-sm leading-relaxed
+                  ${msg.role === 'user' 
+                    ? 'bg-primary text-white rounded-tr-none shadow-bloom-violet' 
                     : msg.role === 'system'
-                    ? 'bg-red-100 text-red-800 border border-red-300'
-                    : 'bg-gray-200 text-gray-800 rounded-bl-none'
-                }`}
-              >
-                <p className={msg.role === 'user' ? 'text-white' : 'text-gray-800'}>
+                    ? 'bg-danger/10 border border-danger/20 text-danger text-center animate-shake'
+                    : 'bg-surface-high/60 backdrop-blur-md border border-outline-variant/30 text-on-surface rounded-tl-none shadow-sm'
+                  }
+                `}>
                   {msg.content}
-                </p>
-                <p
-                  className={`text-xs ${
-                    msg.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                  } mt-1`}
-                >
-                  {msg.timestamp.toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
+                  
+                  {/* Timestamp */}
+                  <div className={`
+                    absolute bottom-[-18px] text-[10px] font-label opacity-40 whitespace-nowrap
+                    ${msg.role === 'user' ? 'right-0' : 'left-0'}
+                  `}>
+                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
               </div>
             </div>
           ))
         )}
-
-        {/* Deal Status Messages */}
-        {dealStatus === 'accepted' && (
-          <div className="flex justify-center my-4">
-            <div className="bg-green-100 border-2 border-green-500 rounded-lg p-4 text-center">
-              <p className="text-green-700 font-bold text-lg">🎉 Deal Accepted!</p>
-              <p className="text-green-600">The shopkeeper accepted your price!</p>
+        
+        {isLoading && (
+          <div className="flex justify-start animate-fade-in">
+            <div className="bg-surface-high/40 p-3 rounded-xl border border-outline-variant/20">
+              <LoadingSpinner size="sm" />
             </div>
           </div>
         )}
 
-        {dealStatus === 'rejected' && (
-          <div className="flex justify-center my-4">
-            <div className="bg-yellow-100 border-2 border-yellow-500 rounded-lg p-4 text-center">
-              <p className="text-yellow-700 font-bold text-lg">❌ Deal Rejected</p>
-              <p className="text-yellow-600">The price is too low. Try again!</p>
-            </div>
+        {dealStatus === 'accepted' && (
+          <div className="py-8 animate-scale-in">
+            <GlassCard tier="floating" glow="cyan" className="text-center p-8 border-success/30">
+              <div className="text-4xl mb-4">🚀</div>
+              <h3 className="text-2xl font-headline font-bold text-success mb-2">Deal Synchronized</h3>
+              <p className="text-on-surface-variant text-sm">Contract finalized at ${currentPrice.toFixed(2)}.</p>
+            </GlassCard>
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Information Box */}
-      {dealStatus !== 'accepted' && (
-        <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mx-4 mt-2 rounded">
-          <p className="text-sm text-blue-800">
-            💰 <strong>Current Price:</strong> ${currentPrice || product.price}
-          </p>
-          <p className="text-xs text-blue-700 mt-1">
-            You can negotiate for as long as you want. Click "Accept Deal" when you're happy with the price!
-          </p>
-        </div>
-      )}
+      {/* ── Interaction Terminal ───────────────────────────────── */}
+      <div className="p-6 bg-surface-base/80 border-t border-outline-variant/20 backdrop-blur-xl">
+        {dealStatus !== 'accepted' && (
+          <>
+            <LeverageMeter current={currentPrice} original={product.price} />
 
-      {/* Input Area */}
-      {dealStatus !== 'accepted' && (
-        <div className="border-t p-4 bg-gray-50">
-          <form onSubmit={handleSendMessage} className="flex gap-2 mb-3">
-            <input
-              type="text"
-              value={userInput}
-              onChange={(e) => setUserInput(e.target.value)}
-              placeholder="Make an offer... (e.g., How about $50?)"
-              disabled={isLoading}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !userInput.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-6 py-2 rounded-lg font-semibold transition"
-            >
-              {isLoading ? (
-                <span className="flex items-center gap-2">
-                  <span className="animate-spin">⏳</span> Sending...
-                </span>
-              ) : (
-                'Send'
+            <div className="flex flex-col gap-4">
+              <form onSubmit={handleSendMessage} className="flex gap-3">
+                <input
+                  type="text"
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  placeholder="Transmit offer... (e.g., $45 is my limit)"
+                  disabled={isLoading}
+                  className="input-field bg-surface-high/30 flex-grow"
+                />
+                <Button
+                  type="submit"
+                  disabled={isLoading || !userInput.trim()}
+                  variant="primary"
+                  className="px-8 min-w-[100px]"
+                >
+                  SEND
+                </Button>
+              </form>
+
+              <Button
+                onClick={handleAcceptDeal}
+                disabled={isLoading || !isDealAcceptable}
+                variant={isDealAcceptable ? "secondary" : "ghost"}
+                fullWidth
+                size="lg"
+                glow={isDealAcceptable ? 'cyan' : 'none'}
+              >
+                {isDealAcceptable ? '✅ SEAL THE DEAL' : '🔒 TARGET PRICE NOT REACHED'}
+              </Button>
+              
+              {!isDealAcceptable && messages.length > 0 && (
+                <p className="text-[10px] text-center font-label font-bold text-secondary uppercase tracking-[0.2em] animate-pulse">
+                  Negotiation Intensity Increasing
+                </p>
               )}
-            </button>
-          </form>
-          
-          {/* Accept Deal Button */}
-          <button
-            onClick={handleAcceptDeal}
-            disabled={isLoading || !isDealAcceptable}
-            className={`w-full px-4 py-2 rounded-lg font-semibold transition ${
-              isDealAcceptable
-                ? 'bg-green-600 hover:bg-green-700 text-white'
-                : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-            }`}
-          >
-            ✅ Accept This Deal
-          </button>
-          
-          {!isDealAcceptable && messages.length > 0 && (
-            <p className="text-xs text-orange-600 mt-2 text-center">
-              💡 Shopkeeper hasn't accepted your price yet. Keep negotiating!
-            </p>
-          )}
-          
-          {!isDealAcceptable && messages.length === 0 && (
-            <p className="text-xs text-gray-500 mt-2 text-center">
-              💡 Make an offer to start negotiation
-            </p>
-          )}
-          
-          <p className="text-xs text-gray-500 mt-2">
-            💡 Tip: Be specific with your offer (e.g., "$50", "Will you take $45?")
-          </p>
-        </div>
-      )}
-
-      {/* Deal Accepted Action Buttons */}
-      {dealStatus === 'accepted' && (
-        <div className="border-t p-4 bg-green-50 flex gap-3">
-          <button
-            onClick={() => onDealAccepted?.()}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition"
-          >
-            ✅ Complete Purchase
-          </button>
-          <button
-            onClick={() => window.location.href = '/products'}
-            className="flex-1 bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition"
-          >
-            Browse More
-          </button>
-        </div>
-      )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 };
 
 export default NegotiationChat;
+
