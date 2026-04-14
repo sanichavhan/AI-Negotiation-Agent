@@ -1,6 +1,10 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import { errorHandler, notFoundHandler } from '../middlewares/errorHandler.js';
+
+// Load environment variables
+dotenv.config();
 
 // Import routes
 import authRoutes from '../routes/authRoutes.js';
@@ -10,12 +14,11 @@ import productRoutes from '../routes/productRoutes.js';
 import morgan from 'morgan';
 const app = express();
 
-// CORS configuration - Local development origins only
-const allowedOrigins = [
-  'http://localhost:5173',           // Local development
-  'http://localhost:3000',           // Local alternative
-  'http://127.0.0.1:5173',          // Local IP
-].filter(Boolean); // Remove falsy values
+// CORS configuration - Read from environment variables
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean); // Remove falsy values
 
 // Middleware
 app.use(morgan('dev'));

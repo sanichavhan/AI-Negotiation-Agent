@@ -28,7 +28,7 @@ const ProductCard = ({
     <GlassCard
       hover
       padding="p-0"
-      className="flex flex-col h-full animate-fade-in group"
+      className="flex flex-col w-full h-full min-h-[34rem] animate-fade-in group"
       onClick={handleClick}
     >
       {/* ── Product Image Container ──────────────────────────── */}

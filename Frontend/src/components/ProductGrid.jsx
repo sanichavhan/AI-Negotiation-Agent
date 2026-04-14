@@ -92,7 +92,7 @@ const ProductGrid = ({
         {products.map((product, idx) => (
           <div 
             key={product.id} 
-            className="flex w-full animate-fade-in-up"
+            className="flex w-full h-full items-stretch animate-fade-in-up"
             style={{ animationDelay: `${idx * 100}ms` }}
           >
             <ProductCard
