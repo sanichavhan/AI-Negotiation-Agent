@@ -14,7 +14,16 @@ export class AppError extends Error {
  */
 export const asyncHandler = (fn) => {
   return (req, res, next) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+    Promise.resolve(fn(req, res, next)).catch((err) => {
+      console.error('🔴 [ASYNC_ERROR] Caught error in handler:', {
+        message: err.message,
+        statusCode: err.statusCode,
+        url: req.originalUrl,
+        method: req.method,
+        stack: err.stack,
+      });
+      next(err);
+    });
   };
 };
 

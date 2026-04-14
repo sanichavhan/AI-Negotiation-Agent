@@ -40,6 +40,19 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Enhanced error logging for all requests
+    const errorInfo = {
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method?.toUpperCase(),
+      message: error.response?.data?.error?.message || error.message,
+      responseData: error.response?.data,
+      timestamp: new Date().toISOString(),
+    };
+
+    // Log all errors to console for debugging
+    console.error(`🔴 API Error [${error.response?.status || 'Network Error'}]:`, errorInfo);
+
     // Debug 401 errors
     if (error.response?.status === 401) {
       console.error('🔴 401 UNAUTHORIZED:', {

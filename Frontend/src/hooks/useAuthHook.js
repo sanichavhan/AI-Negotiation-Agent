@@ -9,15 +9,21 @@ export const useAuth = () => {
     setLoading(true);
     setError(null);
     try {
+      console.log('📝 Registering user:', { username, email });
       const response = await authApi.register({
         username,
         email,
         password,
         displayName,
       });
-      return response.data.data;
+      console.log('✅ Registration response:', response.data);
+      // Handle both response structures
+      const userData = response.data.data || response.data;
+      console.log('✅ Returning user data:', userData);
+      return userData;
     } catch (err) {
       const errorMsg = err.response?.data?.error?.message || err.message;
+      console.error('❌ Registration error:', errorMsg);
       setError(errorMsg);
       throw err;
     } finally {
@@ -29,10 +35,16 @@ export const useAuth = () => {
     setLoading(true);
     setError(null);
     try {
+      console.log('🔐 Logging in user:', { email });
       const response = await authApi.login({ email, password });
-      return response.data.data;
+      console.log('✅ Login response:', response.data);
+      // Handle both response structures
+      const userData = response.data.data || response.data;
+      console.log('✅ Returning user data:', userData);
+      return userData;
     } catch (err) {
       const errorMsg = err.response?.data?.error?.message || err.message;
+      console.error('❌ Login error:', errorMsg);
       setError(errorMsg);
       throw err;
     } finally {
@@ -44,10 +56,16 @@ export const useAuth = () => {
     setLoading(true);
     setError(null);
     try {
+      console.log('👤 Fetching user profile');
       const response = await authApi.getProfile();
-      return response.data.data;
+      console.log('✅ Profile response:', response.data);
+      // Handle both response structures
+      const userData = response.data.data || response.data;
+      console.log('✅ Returning profile data:', userData);
+      return userData;
     } catch (err) {
       const errorMsg = err.response?.data?.error?.message || err.message;
+      console.error('❌ Profile fetch error:', errorMsg);
       setError(errorMsg);
       throw err;
     } finally {

@@ -9,8 +9,11 @@ import { AppError, successResponse, asyncHandler } from '../utils/errorHandler.j
 export const register = asyncHandler(async (req, res) => {
   const { username, email, password, displayName } = req.body;
 
+  console.log('📝 [REGISTER] Received registration request:', { username, email });
+
   // Validation
   if (!username || !email || !password) {
+    console.warn('⚠️ [REGISTER] Missing required fields');
     throw new AppError('Username, email, and password are required', 400);
   }
 
@@ -24,24 +27,45 @@ export const register = asyncHandler(async (req, res) => {
   });
 
   if (existingUser) {
+    console.warn('⚠️ [REGISTER] User already exists:', { 
+      emailExists: existingUser.email === email,
+      usernameExists: existingUser.username === username 
+    });
     throw new AppError('User with this email or username already exists', 409);
   }
 
-  // Create user
-  const user = await User.create({
-    username,
-    email,
-    password,
-    displayName: displayName || username,
-  });
+  try {
+    // Create user
+    const user = await User.create({
+      username,
+      email,
+      password,
+      displayName: displayName || username,
+    });
+    console.log('✅ [REGISTER] User created successfully:', { userId: user._id, username });
 
-  // Generate token
-  const token = generateToken(user._id);
+    // Validate JWT_SECRET is set
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length === 0) {
+      console.error('❌ [REGISTER] JWT_SECRET not properly configured');
+      throw new AppError('Server configuration error - JWT_SECRET not set', 500);
+    }
 
-  successResponse(res, 201, {
-    token,
-    user: user.toJSON(),
-  }, 'User registered successfully');
+    // Generate token
+    const token = generateToken(user._id);
+    console.log('✅ [REGISTER] Token generated, responding with user data');
+
+    successResponse(res, 201, {
+      token,
+      user: user.toJSON(),
+    }, 'User registered successfully');
+  } catch (error) {
+    console.error('❌ [REGISTER] Error during registration:', {
+      error: error.message,
+      errorCode: error.code,
+      errorName: error.name,
+    });
+    throw error;
+  }
 });
 
 /**
@@ -51,32 +75,57 @@ export const register = asyncHandler(async (req, res) => {
 export const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
+  console.log('🔐 [LOGIN] Received login request:', { email });
+
   // Validation
   if (!email || !password) {
+    console.warn('⚠️ [LOGIN] Missing email or password');
     throw new AppError('Email and password are required', 400);
   }
 
-  // Find user
-  const user = await User.findOne({ email });
+  try {
+    // Find user
+    const user = await User.findOne({ email });
 
-  if (!user) {
-    throw new AppError('Invalid email or password', 401);
+    if (!user) {
+      console.warn('⚠️ [LOGIN] User not found:', { email });
+      throw new AppError('Invalid email or password', 401);
+    }
+
+    console.log('✅ [LOGIN] User found, checking password');
+
+    // Check password
+    const isPasswordValid = await user.comparePassword(password);
+
+    if (!isPasswordValid) {
+      console.warn('⚠️ [LOGIN] Invalid password for user:', { email });
+      throw new AppError('Invalid email or password', 401);
+    }
+
+    console.log('✅ [LOGIN] Password valid, generating token');
+
+    // Validate JWT_SECRET is set
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length === 0) {
+      console.error('❌ [LOGIN] JWT_SECRET not properly configured');
+      throw new AppError('Server configuration error - JWT_SECRET not set', 500);
+    }
+
+    // Generate token
+    const token = generateToken(user._id);
+    console.log('✅ [LOGIN] Token generated, responding with user data');
+
+    successResponse(res, 200, {
+      token,
+      user: user.toJSON(),
+    }, 'Logged in successfully');
+  } catch (error) {
+    console.error('❌ [LOGIN] Error during login:', {
+      error: error.message,
+      errorCode: error.code,
+      email,
+    });
+    throw error;
   }
-
-  // Check password
-  const isPasswordValid = await user.comparePassword(password);
-
-  if (!isPasswordValid) {
-    throw new AppError('Invalid email or password', 401);
-  }
-
-  // Generate token
-  const token = generateToken(user._id);
-
-  successResponse(res, 200, {
-    token,
-    user: user.toJSON(),
-  }, 'Logged in successfully');
 });
 
 /**
